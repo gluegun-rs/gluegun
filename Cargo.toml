@@ -2,5 +2,9 @@
 name = "squared"
 version = "0.1.0"
 edition = "2021"
+description = "Placeholder"
+license = "MIT OR APACHE-2.0"
+repository = "https://github.com/nikomatsakis/squared"
+documentation = "https://nikomatsakis.github.io/squared"
 
 [dependencies]
