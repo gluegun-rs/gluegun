@@ -1,11 +1,17 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
 // README at: https://github.com/devcontainers/templates/tree/main/src/rust
 {
+	// FIXME
+	//
+	// * sudo apt update; sudo apt install wabt
+	// * rustup target add wasm32-wasmip2
+
 	"name": "Rust",
 	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
 	"image": "mcr.microsoft.com/devcontainers/rust:1-1-bullseye",
 	"features": {
-		"ghcr.io/eitsupi/devcontainer-features/mdbook:1": {}
+		"ghcr.io/eitsupi/devcontainer-features/mdbook:1": {},
+		"devwasm.azurecr.io/dev-wasm/dev-wasm-feature/wasmtime-wasi:0": {}
 	},
 
 	"customizations": {
