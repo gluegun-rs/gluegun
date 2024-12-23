@@ -17,6 +17,8 @@
                 "vadimcn.vscode-lldb",
                 "usernamehw.errorlens",
                 "streetsidesoftware.code-spell-checker",
+				"bytecodealliance.wit-idl",
+
 
 				// Stuff Niko likes, not sure how to make this optional
 				"kahole.magit",

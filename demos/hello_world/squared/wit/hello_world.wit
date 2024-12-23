@@ -1,0 +1,10 @@
+package squared:hello-world;
+
+interface greet {
+    /// Greets a person by name, or returns a general greeting if no name is provided
+    greet: func(name: option<string>) -> string;
+}
+
+world host {
+    export greet;
+}

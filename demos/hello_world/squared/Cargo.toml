@@ -1,0 +1,11 @@
+[package]
+name = "hello-world-squared"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+hello_world = { version = "0.1.0", path = ".." }
+wit-bindgen = "0.36.0"

@@ -8,3 +8,9 @@ repository = "https://github.com/nikomatsakis/squared"
 documentation = "https://nikomatsakis.github.io/squared"
 
 [dependencies]
+
+[workspace]
+members = [
+    "demos/hello_world",
+    "demos/hello_world/squared/",
+]
