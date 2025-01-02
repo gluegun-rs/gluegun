@@ -8,6 +8,10 @@ repository = "https://github.com/nikomatsakis/squared"
 documentation = "https://nikomatsakis.github.io/squared"
 
 [dependencies]
+accessors-rs = "0.1.0"
+proc-macro2 = { version = "1.0.92", features = ["span-locations"] }
+syn = { version = "2.0.94", features = ["full", "visit"] }
+thiserror = "2.0.9"
 
 [workspace]
 members = [
