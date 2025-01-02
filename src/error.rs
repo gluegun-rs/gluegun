@@ -14,6 +14,24 @@ pub enum Error {
 
     #[error("generics not permitted")]
     GenericsNotPermitted(proc_macro2::Span),
+
+    #[error("fields must either be all public or all crate-private")]
+    MixedPublicPrivate(proc_macro2::Span),
+
+    #[error("unrecognized Rust item")]
+    UnrecognizedItem(proc_macro2::Span),
+
+    #[error("unsupported Rust item; consider using `#[squared::ignore]`")]
+    UnsupportedItem(proc_macro2::Span),
+
+    #[error("only `self`, `&self`, and `&mut self` are supported")]
+    ExplicitSelfNotSupported(proc_macro2::Span),
+
+    #[error("macro invocations not supported")]
+    MacroNotSupported(proc_macro2::Span),
+
+    #[error("unsupported Rust type")]
+    UnsupportedType(proc_macro2::Span),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

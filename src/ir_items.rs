@@ -17,22 +17,23 @@ pub struct Module {
 /// Module item.
 #[non_exhaustive]
 pub enum Item {
-    Class(Class),
+    Resource(Resource),
+    Record(Record),
     Function(Function),
     Module(Module),
 }
 
 #[derive(Accessors)]
 #[accessors(get)]
-pub struct Function { 
-    /// Name in Rust syntax, like `crate::foo::bar`, relative 
+pub struct Function {
+    /// Name in Rust syntax, like `crate::foo::bar`, relative
     pub(crate) name: RustPath,
     pub(crate) signature: Signature,
 }
 
 #[derive(Accessors)]
 #[accessors(get)]
-pub struct Class {
+pub struct Resource {
     pub(crate) constructor: Option<Function>,
 
     /// We recognize "Builder field methods" as a special case.
@@ -44,7 +45,7 @@ pub struct Class {
 
 #[derive(Accessors)]
 #[accessors(get)]
-pub struct BuilderFieldMethod { 
+pub struct BuilderFieldMethod {
     /// A "builder field method" is one that looks like
     /// * `fn name(self, ...) -> Self`
     /// * `fn name(&mut self, ...) -> &mut Self`
@@ -81,15 +82,10 @@ pub enum SelfKind {
 
 #[derive(Accessors)]
 #[accessors(get)]
-pub struct Enum {
-    pub(crate) variants: Vec<Struct>,
-}
-
-#[derive(Accessors)]
-#[accessors(get)]
-pub struct Struct {
+pub struct Record {
     pub(crate) name: String,
     pub(crate) fields: Vec<Field>,
+    pub(crate) methods: Vec<Method>,
 }
 
 #[derive(Accessors)]
@@ -101,9 +97,16 @@ pub struct Field {
 
 #[derive(Accessors)]
 #[accessors(get)]
-pub struct Signature { 
+pub struct Signature {
+    pub(crate) is_async: IsAsync,
     pub(crate) inputs: Vec<FunctionInput>,
     pub(crate) outputs: Vec<Ty>,
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub enum IsAsync {
+    No,
+    Yes,
 }
 
 #[derive(Accessors)]
