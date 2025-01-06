@@ -16,7 +16,7 @@ pub enum Error {
     GenericsNotPermitted(proc_macro2::Span),
 
     #[error("fields must either be all public or all crate-private")]
-    MixedPublicPrivate(proc_macro2::Span),
+    MixedPublicPrivateFields(proc_macro2::Span),
 
     #[error("unrecognized Rust item")]
     UnrecognizedItem(proc_macro2::Span),
@@ -32,6 +32,21 @@ pub enum Error {
 
     #[error("unsupported Rust type")]
     UnsupportedType(proc_macro2::Span),
+
+    #[error("cannot resolve name (it must be public)")]
+    UnresolvedName(proc_macro2::Span),
+
+    #[error("expected a Rust type, not this")]
+    NotType(proc_macro2::Span),
+
+    #[error("anonymous fields unsupported")]
+    AnonymousField(proc_macro2::Span),
+
+    #[error("variants must have anonymous fields")]
+    AnonymousFieldRequired(proc_macro2::Span),
+
+    #[error("unsupported function input pattern, must be a single identifier")]
+    UnsupportedInputPattern(proc_macro2::Span),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
