@@ -1,13 +1,11 @@
-use std::sync::Arc;
+use proc_macro::TokenStream;
+use quote::quote;
+use syn::{parse, parse_macro_input, ItemFn};
 
-use accessors_rs::Accessors;
+/// `#[lingo_star::ignore]` has absolutely no effect but it is recognized by lingo* tooling
+#[proc_macro_attribute]
+pub fn ignore(attr: TokenStream, item: TokenStream) -> TokenStream {
+    parse_macro_input!(attr as syn::parse::Nothing);
 
-mod error;
-mod ir_items;
-mod ir_types;
-mod parse;
-
-pub use error::*;
-pub use ir_items::*;
-pub use ir_types::*;
-pub use parse::*;
+    item
+}

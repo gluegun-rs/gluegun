@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use syn::{spanned::Spanned, FnArg};
+use syn::{spanned::Spanned, FnArg, ImplItemFn};
 
 use crate::{
     Enum, Error, Field, Function, FunctionInput, IsAsync, Item, Method, MethodCategory, Name,
@@ -52,9 +52,9 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
             DefinitionKind::Enum(item, variants) => Ok(Some(Item::Enum(
                 self.elaborate_enum(qname, definition, item, variants)?,
             ))),
-            DefinitionKind::Function(item_fn) => Ok(Some(Item::Function((
-                self.elaborate_function(qname, definition, item_fn)?,
-            )))),
+            DefinitionKind::Function(item_fn) => Ok(Some(Item::Function(
+                self.elaborate_function(qname, definition, item_fn)?
+            ))),
             DefinitionKind::FileModule(_) => {
                 // We don't do model modules explicitly in the output, they are inferred by the set of public definitions.
                 Ok(None)
@@ -246,76 +246,8 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
             return Err(Error::GenericsNotPermitted(impl_item.generics.span()));
         }
 
-        if !fn_item.sig.generics.params.is_empty() {
-            return Err(Error::GenericsNotPermitted(fn_item.sig.generics.span()));
-        }
-
-        let name = util::recognize_name(&fn_item.sig.ident);
-
-        let is_async = if fn_item.sig.asyncness.is_some() {
-            IsAsync::Yes
-        } else {
-            IsAsync::No
-        };
-
-        // Check for `&self` and friends
-        let self_kind = if let Some(syn::FnArg::Receiver(receiver)) = fn_item.sig.inputs.first() {
-            if let Some(colon) = receiver.colon_token {
-                return Err(Error::ExplicitSelfNotSupported(colon.span()));
-            }
-
-            if receiver.reference.is_none() {
-                Some(SelfKind::ByValue)
-            } else if receiver.mutability.is_none() {
-                Some(SelfKind::ByRef)
-            } else {
-                Some(SelfKind::ByRefMut)
-            }
-        } else {
-            None
-        };
-
-        // Check for inputs
-        let mut inputs = vec![];
-        for input in &fn_item.sig.inputs {
-            match input {
-                syn::FnArg::Receiver(_) => {
-                    // Already handled this.
-                    continue;
-                }
-
-                syn::FnArg::Typed(input) => {
-                    let input_ty = self.elaborate_ty(Some(self_ty), &input.ty)?;
-                    inputs.push(FunctionInput {
-                        name: self.function_input_name(input)?,
-                        ty: input_ty,
-                    })
-                }
-            }
-        }
-
-        let output_ty = self.elaborate_return_ty(Some(self_ty), &fn_item.sig.output)?;
-
-        let output_is_self = output_ty == *self_ty;
-
-        let category = match self_kind {
-            None if fn_item.sig.ident == "new" && output_is_self => MethodCategory::Constructor,
-            None => MethodCategory::StaticMethod,
-            Some(SelfKind::ByValue) if output_is_self => {
-                MethodCategory::BuilderMethod(self_kind.unwrap())
-            }
-            Some(self_kind) => MethodCategory::InstanceMethod(self_kind),
-        };
-
-        methods.push(Method {
-            category,
-            name,
-            signature: Signature {
-                is_async,
-                inputs,
-                output_ty,
-            },
-        });
+        let method = self.elaborate_fn_sig(Some(self_ty), &fn_item.sig)?;
+        methods.push(method);
         Ok(())
     }
 
@@ -626,40 +558,11 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
 
     fn elaborate_function(
         &self,
-        self_ty: Option<&Ty>,
-        qname: &QualifiedName,
+        _qname: &QualifiedName,
         _definition: &Definition<'arena>,
         item_fn: &&syn::ItemFn,
     ) -> crate::Result<Function> {
-        let is_async = match item_fn.sig.asyncness {
-            Some(_) => IsAsync::Yes,
-            None => IsAsync::No,
-        };
-
-        let inputs = item_fn
-            .sig
-            .inputs
-            .iter()
-            .filter_map(|fn_arg| match fn_arg {
-                // Ignore `&self` and friends. They are handled elsewhere.
-                FnArg::Receiver(_) => None,
-                FnArg::Typed(pat_type) => Some(pat_type),
-            })
-            .map(|fn_arg| self.elaborate_pat_type(self_ty, fn_arg))
-            .collect::<crate::Result<Vec<_>>>()?;
-
-        let output_ty = match &item_fn.sig.output {
-            syn::ReturnType::Default => Ty::unit(),
-            syn::ReturnType::Type(_, ty) => self.elaborate_ty(self_ty, ty)?,
-        };
-
-        let signature = Signature {
-            is_async,
-            inputs,
-            output_ty,
-        };
-
-        let name = qname.tail_name();
+        let Method { category: _, name, signature } = self.elaborate_fn_sig(None, &item_fn.sig)?;
         Ok(Function { name, signature })
     }
 
@@ -676,5 +579,82 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
         let ty = self.elaborate_ty(self_ty, &pat_type.ty)?;
 
         Ok(FunctionInput { name, ty })
+    }
+
+    fn elaborate_fn_sig(&self, self_ty: Option<&Ty>, sig: &syn::Signature) -> crate::Result<Method> {
+        if !sig.generics.params.is_empty() {
+            return Err(Error::GenericsNotPermitted(sig.generics.span()));
+        }
+
+        let name = util::recognize_name(&sig.ident);
+
+        let is_async = if sig.asyncness.is_some() {
+            IsAsync::Yes
+        } else {
+            IsAsync::No
+        };
+
+        // Check for `&self` and friends
+        let self_kind = if let Some(syn::FnArg::Receiver(receiver)) = sig.inputs.first() {
+            if let Some(colon) = receiver.colon_token {
+                return Err(Error::ExplicitSelfNotSupported(colon.span()));
+            }
+
+            if receiver.reference.is_none() {
+                Some(SelfKind::ByValue)
+            } else if receiver.mutability.is_none() {
+                Some(SelfKind::ByRef)
+            } else {
+                Some(SelfKind::ByRefMut)
+            }
+        } else {
+            None
+        };
+
+        // Check for inputs
+        let mut inputs = vec![];
+        for input in &sig.inputs {
+            match input {
+                syn::FnArg::Receiver(_) => {
+                    // Already handled this.
+                    continue;
+                }
+
+                syn::FnArg::Typed(input) => {
+                    let input_ty = self.elaborate_ty(self_ty, &input.ty)?;
+                    inputs.push(FunctionInput {
+                        name: self.function_input_name(input)?,
+                        ty: input_ty,
+                    })
+                }
+            }
+        }
+
+        let output_ty = self.elaborate_return_ty(self_ty, &sig.output)?;
+
+        let output_is_self = if let Some(self_ty) = self_ty {
+            output_ty == *self_ty
+        } else {
+            false
+        };
+
+        let category = match self_kind {
+            None if sig.ident == "new" && output_is_self => MethodCategory::Constructor,
+            None => MethodCategory::StaticMethod,
+            Some(SelfKind::ByValue) if output_is_self => {
+                MethodCategory::BuilderMethod(self_kind.unwrap())
+            }
+            Some(self_kind) => MethodCategory::InstanceMethod(self_kind),
+        };
+
+        Ok(Method {
+            category,
+            name,
+            signature: Signature {
+                is_async,
+                inputs,
+                output_ty,
+            },
+        })
     }
 }

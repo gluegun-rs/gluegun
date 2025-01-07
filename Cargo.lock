@@ -38,6 +38,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b048fb63fd8b5923fc5aa7b340d8e156aec7ec02f0c78fa8a6ddc2613f6f71de"
 
 [[package]]
+name = "cargo-lingo"
+version = "0.1.0"
+
+[[package]]
 name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -110,6 +114,27 @@ name = "leb128"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "884e2677b40cc8c339eaefcb701c32ef1fd2493d71118dc0ca4b6a736c93bd67"
+
+[[package]]
+name = "lingo-star"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.94",
+]
+
+[[package]]
+name = "lingo-star-idl"
+version = "0.1.0"
+dependencies = [
+ "accessors-rs",
+ "proc-macro2",
+ "serde",
+ "syn 2.0.94",
+ "thiserror",
+ "typed-arena",
+]
 
 [[package]]
 name = "log"
@@ -214,18 +239,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bae30cc7bfe3656d60ee99bf6836f472b0c53dddcbf335e253329abb16e535a2"
 dependencies = [
  "smallvec",
-]
-
-[[package]]
-name = "squared"
-version = "0.1.0"
-dependencies = [
- "accessors-rs",
- "proc-macro2",
- "serde",
- "syn 2.0.94",
- "thiserror",
- "typed-arena",
 ]
 
 [[package]]
