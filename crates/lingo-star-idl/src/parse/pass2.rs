@@ -1,27 +1,49 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::Arc};
 
-use syn::{spanned::Spanned, FnArg, ImplItemFn};
+use syn::spanned::Spanned;
 
 use crate::{
-    Enum, Error, Field, Function, FunctionInput, IsAsync, Item, Method, MethodCategory, Name,
-    QualifiedName, Record, Resource, RustReprKind, SelfKind, Signature, Ty, TypeKind, Variant,
-    VariantArm,
+    Enum, Error, ErrorSpan, Field, Function, FunctionInput, IsAsync, Item, Method, MethodCategory,
+    Name, QualifiedName, Record, Resource, RustReprKind, SelfKind, Signature, Ty, TypeKind,
+    Variant, VariantArm,
 };
 
 use super::{
     known_rust::{self, elaborate_rust_type, KNOWN_RUST_IMPL_TRAIT_TYPES, KNOWN_RUST_TYPES},
-    util, Definition, DefinitionKind,
+    util, Definition, DefinitionKind, SourcePath,
 };
 
-pub(super) struct Elaborator<'pass2, 'arena> {
-    in_definitions: &'pass2 BTreeMap<QualifiedName, Definition<'arena>>,
+pub(super) struct Elaborator<'arena> {
+    source: Option<SourcePath>,
     module_qname: QualifiedName,
+    recognized: Arc<BTreeMap<QualifiedName, Definition<'arena>>>,
     out_items: BTreeMap<QualifiedName, Item>,
 }
 
-impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
-    fn elaborate_all(&mut self) -> crate::Result<()> {
-        for (qname, definition) in self.in_definitions {
+impl<'arena> Elaborator<'arena> {
+    pub(super) fn new(recognized: Arc<BTreeMap<QualifiedName, Definition<'arena>>>) -> Self {
+        Self {
+            recognized,
+            source: None,
+            module_qname: QualifiedName::new(vec![]),
+            out_items: BTreeMap::new(),
+        }
+    }
+
+    /// Access the source for the current definition;
+    /// should only be used when processing a definition (which is almost always)
+    fn source(&self) -> &SourcePath {
+        self.source.as_ref().unwrap()
+    }
+
+    fn error(&self, variant: fn(ErrorSpan) -> Error, spanned: impl Spanned) -> Error {
+        variant(self.source().span(spanned))
+    }
+
+    pub(super) fn into_elaborated_items(mut self) -> crate::Result<BTreeMap<QualifiedName, Item>> {
+        let recognized = self.recognized.clone();
+        for (qname, definition) in recognized.iter() {
+            self.source = Some(definition.source.clone());
             self.module_qname.set_to_module_of(qname);
 
             // Convert the input definition and produce the output definition.
@@ -29,9 +51,10 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
                 self.out_items.insert(qname.clone(), item);
             }
 
+            self.source = None;
             self.module_qname.clear();
         }
-        Ok(())
+        Ok(self.out_items)
     }
 
     fn elaborate_definition(
@@ -53,9 +76,9 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
                 self.elaborate_enum(qname, definition, item, variants)?,
             ))),
             DefinitionKind::Function(item_fn) => Ok(Some(Item::Function(
-                self.elaborate_function(qname, definition, item_fn)?
+                self.elaborate_function(qname, definition, item_fn)?,
             ))),
-            DefinitionKind::FileModule(_) => {
+            DefinitionKind::FileModule => {
                 // We don't do model modules explicitly in the output, they are inferred by the set of public definitions.
                 Ok(None)
             }
@@ -69,7 +92,7 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
         item: &syn::ItemStruct,
     ) -> crate::Result<Record> {
         if item.generics.params.len() > 0 {
-            return Err(Error::GenericsNotPermitted(item.generics.span()));
+            return Err(self.error(Error::GenericsNotPermitted, &item.generics));
         }
 
         let self_ty = Ty::user(qname);
@@ -95,7 +118,7 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
                     name: util::recognize_name(name),
                     ty: self.elaborate_ty(Some(self_ty), &field.ty)?,
                 }),
-                None => Err(Error::AnonymousField(field.span())),
+                None => Err(self.error(Error::AnonymousField, &field)),
             })
             .collect()
     }
@@ -144,7 +167,7 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
         let name = util::recognize_name(&variant.ident);
         match &variant.fields {
             syn::Fields::Named(fields_named) => {
-                Err(Error::AnonymousFieldRequired(fields_named.span()))
+                Err(self.error(Error::AnonymousFieldRequired, &fields_named))
             }
             syn::Fields::Unnamed(fields_unnamed) => Ok(VariantArm {
                 name,
@@ -205,25 +228,25 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
 
                     syn::ImplItem::Const(item_in_impl) => {
                         if !util::ignore(&item_in_impl.vis, &item_in_impl.attrs) {
-                            return Err(Error::UnsupportedItem(item_in_impl.span()));
+                            return Err(self.error(Error::UnsupportedItem, &item_in_impl));
                         }
                     }
                     syn::ImplItem::Type(item_in_impl) => {
                         if !util::ignore(&item_in_impl.vis, &item_in_impl.attrs) {
-                            return Err(Error::UnsupportedItem(item_in_impl.span()));
+                            return Err(self.error(Error::UnsupportedItem, &item_in_impl));
                         }
                     }
                     syn::ImplItem::Macro(item_in_impl) => {
                         if !util::ignore_from_attrs(&item_in_impl.attrs) {
-                            return Err(Error::UnsupportedItem(item_in_impl.span()));
+                            return Err(self.error(Error::UnsupportedItem, &item_in_impl));
                         }
                     }
 
                     syn::ImplItem::Verbatim(impl_item) => {
-                        return Err(Error::UnsupportedItem(impl_item.span()));
+                        return Err(self.error(Error::UnsupportedItem, &impl_item));
                     }
 
-                    _ => return Err(Error::UnrecognizedItem(item_in_impl.span())),
+                    _ => return Err(self.error(Error::UnrecognizedItem, &item_in_impl)),
                 }
             }
         }
@@ -243,7 +266,7 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
         }
 
         if !impl_item.generics.params.is_empty() {
-            return Err(Error::GenericsNotPermitted(impl_item.generics.span()));
+            return Err(self.error(Error::GenericsNotPermitted, &impl_item.generics));
         }
 
         let method = self.elaborate_fn_sig(Some(self_ty), &fn_item.sig)?;
@@ -254,7 +277,7 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
     fn function_input_name(&self, input: &syn::PatType) -> crate::Result<Name> {
         match &*input.pat {
             syn::Pat::Ident(ident) => Ok(util::recognize_name(&ident.ident)),
-            _ => Err(Error::UnsupportedInputPattern(input.span())),
+            _ => Err(self.error(Error::UnsupportedInputPattern, &input)),
         }
     }
 
@@ -290,13 +313,13 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
                     // Found a type defined in this module.
                     Ok(user_ty)
                 } else if let Some(rust_ty) =
-                    elaborate_rust_type(ty, &idents, &tys, &KNOWN_RUST_TYPES)?
+                    elaborate_rust_type(self.source(), ty, &idents, &tys, &KNOWN_RUST_TYPES)?
                 {
                     // Found a well-known Rust type.
                     Ok(rust_ty)
                 } else {
                     // Unknown or unsupported type.
-                    Err(Error::UnresolvedName(type_path.span()))
+                    Err(self.error(Error::UnresolvedName, &type_path))
                 }
             }
 
@@ -305,12 +328,12 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
 
                 if let Some(m) = &ty.mutability {
                     // Do not permit `&mut`
-                    return Err(Error::UnsupportedType(m.span()));
+                    return Err(self.error(Error::UnsupportedType, &m));
                 }
 
                 if let Some(m) = &ty.lifetime {
                     // Do not permit named lifetimes for now (do they do any harm though?)
-                    return Err(Error::UnsupportedType(m.span()));
+                    return Err(self.error(Error::UnsupportedType, &m));
                 }
 
                 let inner_ty = self.elaborate_ty(self_ty, &ty.elem)?;
@@ -346,7 +369,7 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
             }
 
             // Everything else is not recognized.
-            _ => return Err(Error::UnsupportedType(ty.span())),
+            _ => return Err(self.error(Error::UnsupportedType, &ty)),
         }
     }
 
@@ -362,6 +385,7 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
                 syn::TypeParamBound::Trait(bound) => {
                     let (idents, tys) = self.elaborate_path(self_ty, &bound.path)?;
                     if let Some(ty) = known_rust::elaborate_rust_type(
+                        self.source(),
                         ty,
                         &idents,
                         &tys,
@@ -369,23 +393,23 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
                     )? {
                         return Ok(ty);
                     } else {
-                        return Err(Error::UnsupportedType(bound.span()));
+                        return Err(self.error(Error::UnsupportedType, &bound));
                     }
                 }
                 syn::TypeParamBound::Lifetime(bound) => {
                     if bound.ident == "static" {
                         // OK
                     } else {
-                        return Err(Error::UnsupportedType(bound.span()));
+                        return Err(self.error(Error::UnsupportedType, &bound));
                     }
                 }
                 syn::TypeParamBound::PreciseCapture(_) => {
                     // ignore these, not relevant to FFI
                 }
-                _ => return Err(Error::UnsupportedType(bound.span())),
+                _ => return Err(self.error(Error::UnsupportedType, &bound)),
             }
         }
-        return Err(Error::UnsupportedType(ty.span()));
+        return Err(self.error(Error::UnsupportedType, &ty));
     }
 
     /// Try to resolve the path type `ty`, broken down into `idents` and `tys`,
@@ -411,7 +435,7 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
             let crate_name = self.module_qname.just_crate();
             match self.elaborate_user_ty_in_module_relative_to(ty, &crate_name, idents_rest, tys)? {
                 Some(ty) => Ok(Some(ty)),
-                None => Err(Error::UnresolvedName(ty.span())),
+                None => Err(self.error(Error::UnresolvedName, &ty)),
             }
         } else {
             // Other paths are relative to the current module.
@@ -438,18 +462,18 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
         };
 
         let path = qname.join(&Name::from_ident(ident0));
-        match self.in_definitions.get(&path) {
+        match self.recognized.get(&path) {
             None => Ok(None),
 
             Some(definition) => match &definition.kind {
-                DefinitionKind::FileModule(_) => {
+                DefinitionKind::FileModule => {
                     match self.elaborate_user_ty_in_module_relative_to(
                         ty,
                         &path,
                         idents_rest,
                         tys,
                     )? {
-                        None => Err(Error::UnresolvedName(ty.span())),
+                        None => Err(self.error(Error::UnresolvedName, &ty)),
                         Some(ty) => Ok(Some(ty)),
                     }
                 }
@@ -458,12 +482,12 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
                 | DefinitionKind::Enum(..)
                 | DefinitionKind::Resource(_) => {
                     if !tys.is_empty() {
-                        Err(Error::GenericsNotPermitted(ty.span()))
+                        Err(self.error(Error::GenericsNotPermitted, &ty))
                     } else {
                         Ok(Some(Ty::user(&path)))
                     }
                 }
-                DefinitionKind::Function(_) => Err(Error::NotType(ty.span())),
+                DefinitionKind::Function(_) => Err(self.error(Error::NotType, &ty)),
             },
         }
     }
@@ -476,7 +500,7 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
         let syn::TypePath { qself, path } = type_path;
 
         if let Some(qself) = qself {
-            return Err(Error::UnsupportedType(qself.span()));
+            return Err(self.error(Error::UnsupportedType, qself.span()));
         }
 
         self.elaborate_path(self_ty, path)
@@ -506,13 +530,13 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
                     break;
                 }
                 syn::PathArguments::Parenthesized(args) => {
-                    return Err(Error::UnsupportedType(args.span()));
+                    return Err(self.error(Error::UnsupportedType, &args));
                 }
             }
         }
 
         if let Some(extra_segment) = segments.next() {
-            return Err(Error::UnsupportedType(extra_segment.span()));
+            return Err(self.error(Error::UnsupportedType, &extra_segment));
         }
 
         Ok((idents, tys))
@@ -525,7 +549,7 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
     ) -> crate::Result<Ty> {
         match arg {
             syn::GenericArgument::Type(ty) => self.elaborate_ty(self_ty, ty),
-            _ => Err(Error::UnsupportedType(arg.span())),
+            _ => Err(self.error(Error::UnsupportedType, &arg)),
         }
     }
 
@@ -562,28 +586,21 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
         _definition: &Definition<'arena>,
         item_fn: &&syn::ItemFn,
     ) -> crate::Result<Function> {
-        let Method { category: _, name, signature } = self.elaborate_fn_sig(None, &item_fn.sig)?;
+        let Method {
+            category: _,
+            name,
+            signature,
+        } = self.elaborate_fn_sig(None, &item_fn.sig)?;
         Ok(Function { name, signature })
     }
 
-    fn elaborate_pat_type(
+    fn elaborate_fn_sig(
         &self,
         self_ty: Option<&Ty>,
-        pat_type: &syn::PatType,
-    ) -> crate::Result<FunctionInput> {
-        let name = match &*pat_type.pat {
-            syn::Pat::Ident(pat_ident) => Name::from_ident(&pat_ident.ident),
-            _ => return Err(Error::UnsupportedInputPattern(pat_type.pat.span())),
-        };
-
-        let ty = self.elaborate_ty(self_ty, &pat_type.ty)?;
-
-        Ok(FunctionInput { name, ty })
-    }
-
-    fn elaborate_fn_sig(&self, self_ty: Option<&Ty>, sig: &syn::Signature) -> crate::Result<Method> {
+        sig: &syn::Signature,
+    ) -> crate::Result<Method> {
         if !sig.generics.params.is_empty() {
-            return Err(Error::GenericsNotPermitted(sig.generics.span()));
+            return Err(self.error(Error::GenericsNotPermitted, &sig.generics));
         }
 
         let name = util::recognize_name(&sig.ident);
@@ -597,7 +614,7 @@ impl<'pass2, 'arena> Elaborator<'pass2, 'arena> {
         // Check for `&self` and friends
         let self_kind = if let Some(syn::FnArg::Receiver(receiver)) = sig.inputs.first() {
             if let Some(colon) = receiver.colon_token {
-                return Err(Error::ExplicitSelfNotSupported(colon.span()));
+                return Err(self.error(Error::ExplicitSelfNotSupported, &colon));
             }
 
             if receiver.reference.is_none() {

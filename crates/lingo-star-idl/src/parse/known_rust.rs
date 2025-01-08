@@ -1,6 +1,4 @@
-use syn::spanned::Spanned;
-
-use crate::{Error, RustName, RustReprKind, Ty, TypeKind};
+use crate::{Error, RustName, RustReprKind, SourcePath, Ty, TypeKind};
 
 /// Defines a known Rust type that can be matched against.
 /// See [`elaborate_rust_type`][].
@@ -101,6 +99,7 @@ pub(super) const KNOWN_RUST_IMPL_TRAIT_TYPES: &[KnownRustType] = &[
 /// Returns `Ok(Some(ty))` if the match is successful or `Ok(None)` if there is no match.
 /// Returns an error if there is a match for the name but the arity is wrong or some other similar situation.
 pub(super) fn elaborate_rust_type(
+    source: &SourcePath,
     ty: &syn::Type,
     idents: &[syn::Ident],
     tys: &[Ty],
@@ -111,8 +110,7 @@ pub(super) fn elaborate_rust_type(
         // We just assume all std Rust types are either in the prelude or are imported by some `use`.
         // This is a bit of a hack because the user may have shadowed e.g. `HashMap` with their own `HashMap`
         // and we won't notice. Oh well, I'm lazy.
-        krts
-            .iter()
+        krts.iter()
             .find(|krt| idents[0] == *krt.name.last().unwrap())
     } else {
         krts.iter().find(|krt| {
@@ -128,22 +126,27 @@ pub(super) fn elaborate_rust_type(
 
     // Construct the type kind.
     let type_kind = match krt.type_kind {
-        TypeKindFn::Arity0(f) => if tys.len() != 0 {
-            return Err(Error::GenericsNotPermitted(ty.span()));
-        } else {
-            f()
-        },
-        TypeKindFn::Arity1(f) => if tys.len() != 1 {
-            return Err(Error::GenericsNotPermitted(ty.span()));
-
-        } else {
-            f(tys[0].clone())
-        },
-        TypeKindFn::Arity2(f) => if tys.len() != 2 {
-            return Err(Error::GenericsNotPermitted(ty.span()));
-        } else {
-            f(tys[0].clone(), tys[1].clone())
-        },
+        TypeKindFn::Arity0(f) => {
+            if tys.len() != 0 {
+                return Err(Error::GenericsNotPermitted(source.span(ty)));
+            } else {
+                f()
+            }
+        }
+        TypeKindFn::Arity1(f) => {
+            if tys.len() != 1 {
+                return Err(Error::GenericsNotPermitted(source.span(ty)));
+            } else {
+                f(tys[0].clone())
+            }
+        }
+        TypeKindFn::Arity2(f) => {
+            if tys.len() != 2 {
+                return Err(Error::GenericsNotPermitted(source.span(ty)));
+            } else {
+                f(tys[0].clone(), tys[1].clone())
+            }
+        }
     };
 
     // The Rust repr will be a "named" type.

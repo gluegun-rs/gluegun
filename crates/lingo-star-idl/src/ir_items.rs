@@ -1,13 +1,14 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, ffi::OsStr};
 
 use accessors_rs::Accessors;
 use serde::{Deserialize, Serialize};
 
-use crate::Ty;
+use crate::{Error, Ty};
 
 #[derive(Accessors, Clone, Debug, Serialize, Deserialize)]
 #[accessors(get)]
-pub struct Universe {
+pub struct LingoStarIdl {
+    pub(crate) crate_name: Name,
     pub(crate) definitions: BTreeMap<QualifiedName, Item>,
 }
 
@@ -17,11 +18,13 @@ pub struct QualifiedName {
     pub(crate) names: Vec<Name>,
 }
 
-impl QualifiedName {
-    pub(crate) fn empty() -> Self {
-        Self::new(vec![])
+impl From<&Name> for QualifiedName {
+    fn from(name: &Name) -> Self {
+        QualifiedName::new(vec![name.clone()])
     }
+}
 
+impl QualifiedName {
     pub(crate) fn new(names: Vec<Name>) -> Self {
         QualifiedName { names }
     }
@@ -48,7 +51,7 @@ impl QualifiedName {
     pub(crate) fn clear(&mut self) {
         self.names.clear();
     }
-    
+
     pub(crate) fn just_crate(&self) -> QualifiedName {
         QualifiedName::new(vec![self.names[0].clone()])
     }
@@ -65,6 +68,17 @@ impl Name {
         Name {
             text: ident.to_string(),
         }
+    }
+
+    /// Create a name from an O/S string.
+    pub(crate) fn from_os_string(ident: &OsStr) -> crate::Result<Self> {
+        let Some(s) = ident.to_str() else {
+            return Err(Error::NotUtf8(ident.to_owned()));
+        };
+
+        Ok(Name {
+            text: s.to_string(),
+        })
     }
 }
 
@@ -199,4 +213,3 @@ pub struct FunctionInput {
     pub(crate) name: Name,
     pub(crate) ty: Ty,
 }
-

@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use accessors_rs::Accessors;
 use serde::{Deserialize, Serialize};
 
 use crate::QualifiedName;
@@ -21,7 +20,10 @@ impl Ty {
 
     /// Returns the unit type. Used for a dummy value in early phases.
     pub fn unit() -> Self {
-        Self::new(TypeKind::Tuple { elements: vec![] }, RustReprKind::Tuple(vec![]))
+        Self::new(
+            TypeKind::Tuple { elements: vec![] },
+            RustReprKind::Tuple(vec![]),
+        )
     }
 
     pub fn kind(&self) -> &TypeKind {
@@ -39,7 +41,10 @@ impl Ty {
 
     pub(crate) fn with_repr(self, r: impl FnOnce(RustRepr) -> RustReprKind) -> Self {
         let kind = r(self.rust_repr);
-        Self { rust_repr: RustRepr::new(kind), ..self }
+        Self {
+            rust_repr: RustRepr::new(kind),
+            ..self
+        }
     }
 
     pub fn rust_repr(&self) -> &RustRepr {
@@ -47,22 +52,37 @@ impl Ty {
     }
 }
 
-
 #[non_exhaustive]
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 pub enum TypeKind {
-    Map { key: Ty, value: Ty },
-    Vec { element: Ty },
-    Set { element: Ty },
+    Map {
+        key: Ty,
+        value: Ty,
+    },
+    Vec {
+        element: Ty,
+    },
+    Set {
+        element: Ty,
+    },
     Path,
     String,
-    Option { element: Ty },
-    Result { ok: Ty, err: Ty },
-    Tuple { elements: Vec<Ty> },
+    Option {
+        element: Ty,
+    },
+    Result {
+        ok: Ty,
+        err: Ty,
+    },
+    Tuple {
+        elements: Vec<Ty>,
+    },
     Scalar(Scalar),
 
-    /// Type defined by the user 
-    UserType { qname: QualifiedName },
+    /// Type defined by the user
+    UserType {
+        qname: QualifiedName,
+    },
 }
 
 /// Recognized scalar types
@@ -90,7 +110,9 @@ pub struct RustRepr {
 
 impl RustRepr {
     pub(crate) fn new(kind: RustReprKind) -> Self {
-        Self { kind: Arc::new(kind) }
+        Self {
+            kind: Arc::new(kind),
+        }
     }
 
     pub fn kind(&self) -> &RustReprKind {

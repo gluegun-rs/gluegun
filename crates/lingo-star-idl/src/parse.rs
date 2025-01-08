@@ -1,34 +1,84 @@
-use std::{
-    collections::BTreeMap, path::{Path, PathBuf}, str::FromStr
-};
+use std::path::Path;
 
-use syn::{spanned::Spanned, ImplItemFn};
+use crate::{Error, LingoStarIdl, Name, QualifiedName, SourcePath};
 
-use crate::{Enum, Error, Field, Function, IsAsync, Item, Method, Module, Name, QualifiedName, Record, Resource, RustRepr, RustReprKind, SelfKind, Ty, Universe, Variant, VariantArm};
+/// Given a path to a Rust source (typically `src/lib.rs` or some such)
+/// parses and extracts the IDL entries.
+pub fn parse_path(rs_path: &Path) -> crate::Result<LingoStarIdl> {
+    let crate_name = extract_crate_name(rs_path)?;
+    let arena = AstArena::default();
+    let ast = arena.parse_file(rs_path)?;
+    let crate_qname = QualifiedName::from(&crate_name);
+    let source = SourcePath::new(rs_path);
+    let recognized = pass1::Recognizer::new(&source, crate_qname, ast).into_recognized()?;
+    let elaborated = pass2::Elaborator::new(recognized).into_elaborated_items()?;
+    Ok(LingoStarIdl {
+        crate_name: crate_name,
+        definitions: elaborated,
+    })
+}
 
-pub fn parse_path(path: &Path) -> crate::Result<Universe> {
-    let text = std::fs::read_to_string(path)?;
-    let tokens = proc_macro2::TokenStream::from_str(&text)?;
-    let ast: syn::File = syn::parse2(tokens)?;
+/// We deduce the crate name based on the directory.
+/// We expect `path` to be a `.rs` file found in some `src` directory;
+/// the parent of the src is the crate name.
+///
+/// Really we should look at the toml file.
+fn extract_crate_name(rs_path: &Path) -> crate::Result<Name> {
+    if rs_path.extension().is_none() || rs_path.extension().unwrap() != "rs" {
+        return Err(Error::InvalidPath(rs_path.to_owned()));
+    }
 
-    todo!()
+    if !rs_path.is_file() {
+        return Err(Error::InvalidPath(rs_path.to_owned()));
+    }
+
+    let mut parents = std::iter::from_fn({
+        let mut p = rs_path;
+        move || {
+            p = p.parent()?;
+            Some(p)
+        }
+    });
+
+    while let Some(parent) = parents.next() {
+        if let Some(f) = parent.file_name() {
+            if f == "src" {
+                break;
+            }
+        }
+    }
+
+    let Some(crate_path) = parents.next() else {
+        return Err(Error::InvalidPath(rs_path.to_owned()));
+    };
+
+    let Some(crate_name) = crate_path.file_name() else {
+        return Err(Error::InvalidPath(rs_path.to_owned()));
+    };
+
+    Ok(Name::from_os_string(crate_name)?)
 }
 
 #[derive(Default)]
-pub struct ParserArena {
+struct AstArena {
     files: typed_arena::Arena<syn::File>,
 }
 
-struct Parser<'arena> {
-    crate_name: Name,
-    arena: &'arena ParserArena,
-    definitions: BTreeMap<QualifiedName, Definition<'arena>>,
+impl AstArena {
+    fn parse_file(&self, path: &Path) -> crate::Result<&syn::File> {
+        let contents = std::fs::read_to_string(path)?;
+        let file = syn::parse_file(&contents)?;
+        Ok(self.files.alloc(file))
+    }
 }
 
 /// Internal intermediate structure representing some kind of public user-visible definition.
 struct Definition<'p> {
     /// The syn module from which this was parsed.
-    module: &'p syn::File, 
+    module: &'p syn::File,
+
+    /// The path which the definition was parsed from.
+    source: SourcePath,
 
     /// The kind of definition.
     kind: DefinitionKind<'p>,
@@ -58,23 +108,7 @@ enum DefinitionKind<'p> {
 
     /// *Modules* are public Rust modules; unlike the other variants, these are not mapped to output items,
     /// but they are used in name resolution.
-    FileModule(&'p syn::File),
-}
-
-impl<'p> Parser<'p> {
-    pub fn new(arena: &'p ParserArena, crate_name: Name) -> Self {
-        Self {
-            arena,
-            crate_name,
-            definitions: BTreeMap::new(),
-        }
-    }
-
-    /// The path of the root crate file (typically something like `src/lib.rs`)
-    pub fn parse(&mut self, crate_root_path: impl AsRef<Path>) -> crate::Result<()> {
-        self.parse_path(crate_root_path.as_ref())
-    }
-
+    FileModule,
 }
 
 /// Pass 1: Recognize types, imports, and things. Don't fill out the details (fields, methods).

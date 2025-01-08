@@ -1,4 +1,8 @@
+use std::{ffi::OsString, path::PathBuf};
+
 use thiserror::Error;
+
+use crate::ErrorSpan;
 
 #[derive(Debug, Error)]
 #[non_exhaustive]
@@ -7,46 +11,55 @@ pub enum Error {
     Io(#[from] std::io::Error),
 
     #[error("parse error: {0}")]
-    Parse(#[from] syn::Error),
+    Parse(String),
 
-    #[error("lex error: {0}")]
-    LexError(#[from] proc_macro2::LexError),
+    #[error("{0}: generics not permitted")]
+    GenericsNotPermitted(ErrorSpan),
 
-    #[error("generics not permitted")]
-    GenericsNotPermitted(proc_macro2::Span),
+    #[error("{0}: fields must either be all public or all crate-private")]
+    MixedPublicPrivateFields(ErrorSpan),
 
-    #[error("fields must either be all public or all crate-private")]
-    MixedPublicPrivateFields(proc_macro2::Span),
+    #[error("{0}: unrecognized Rust item")]
+    UnrecognizedItem(ErrorSpan),
 
-    #[error("unrecognized Rust item")]
-    UnrecognizedItem(proc_macro2::Span),
+    #[error("{0}: unsupported Rust item; consider using `#[squared::ignore]`")]
+    UnsupportedItem(ErrorSpan),
 
-    #[error("unsupported Rust item; consider using `#[squared::ignore]`")]
-    UnsupportedItem(proc_macro2::Span),
+    #[error("{0}: only `self`, `&self`, and `&mut self` are supported")]
+    ExplicitSelfNotSupported(ErrorSpan),
 
-    #[error("only `self`, `&self`, and `&mut self` are supported")]
-    ExplicitSelfNotSupported(proc_macro2::Span),
+    #[error("{0}: macro invocations not supported")]
+    MacroNotSupported(ErrorSpan),
 
-    #[error("macro invocations not supported")]
-    MacroNotSupported(proc_macro2::Span),
+    #[error("{0}: unsupported Rust type")]
+    UnsupportedType(ErrorSpan),
 
-    #[error("unsupported Rust type")]
-    UnsupportedType(proc_macro2::Span),
+    #[error("{0}: cannot resolve name (it must be public)")]
+    UnresolvedName(ErrorSpan),
 
-    #[error("cannot resolve name (it must be public)")]
-    UnresolvedName(proc_macro2::Span),
+    #[error("{0}: expected a Rust type, not this")]
+    NotType(ErrorSpan),
 
-    #[error("expected a Rust type, not this")]
-    NotType(proc_macro2::Span),
+    #[error("{0}: anonymous fields unsupported")]
+    AnonymousField(ErrorSpan),
 
-    #[error("anonymous fields unsupported")]
-    AnonymousField(proc_macro2::Span),
+    #[error("{0}: variants must have anonymous fields")]
+    AnonymousFieldRequired(ErrorSpan),
 
-    #[error("variants must have anonymous fields")]
-    AnonymousFieldRequired(proc_macro2::Span),
+    #[error("{0}: unsupported function input pattern, must be a single identifier")]
+    UnsupportedInputPattern(ErrorSpan),
 
-    #[error("unsupported function input pattern, must be a single identifier")]
-    UnsupportedInputPattern(proc_macro2::Span),
+    #[error("{0}: expected to be invoked with a path like `foo/src/../*.rs`, found")]
+    InvalidPath(PathBuf),
+
+    #[error("path component could not be converted to a string")]
+    NotUtf8(OsString),
+}
+
+impl From<syn::Error> for Error {
+    fn from(value: syn::Error) -> Self {
+        Error::Parse(value.to_string())
+    }
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

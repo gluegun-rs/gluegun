@@ -1,24 +1,54 @@
+use std::{collections::BTreeMap, sync::Arc};
+
 use syn::spanned::Spanned;
 
-use crate::{Error, QualifiedName};
+use crate::{Error, ErrorSpan, QualifiedName, SourcePath};
 
-use super::{util, Definition, DefinitionKind, Parser};
+use super::{util, Definition, DefinitionKind};
 
-pub(super) struct Recognizer<'pass1, 'arena> {
-    parser: &'pass1 mut Parser<'arena>,
+pub(super) struct Recognizer<'ast> {
+    source: SourcePath,
     module_name: QualifiedName,
-    ast: &'arena syn::File,
+    ast: &'ast syn::File,
+    recognized: BTreeMap<QualifiedName, Definition<'ast>>,
 }
 
-impl<'pass1, 'arena> Recognizer<'pass1, 'arena> {
-    fn recognize_all(&mut self) -> crate::Result<()> {
+impl<'ast> Recognizer<'ast> {
+    pub(super) fn new(
+        source: &SourcePath,
+        module_name: QualifiedName,
+        ast: &'ast syn::File,
+    ) -> Self {
+        Self {
+            source: source.clone(),
+            module_name,
+            ast,
+            recognized: BTreeMap::new(),
+        }
+    }
+
+    fn definition(&self, kind: DefinitionKind<'ast>) -> Definition<'ast> {
+        Definition {
+            kind,
+            source: self.source.clone(),
+            module: self.ast,
+        }
+    }
+
+    fn error(&self, variant: fn(ErrorSpan) -> Error, spanned: impl Spanned) -> Error {
+        variant(self.source.span(spanned))
+    }
+
+    pub(super) fn into_recognized(
+        mut self,
+    ) -> crate::Result<Arc<BTreeMap<QualifiedName, Definition<'ast>>>> {
         for item in &self.ast.items {
             self.recognize_item(item)?;
         }
-        Ok(())
+        Ok(Arc::new(self.recognized))
     }
 
-    fn recognize_item(&mut self, item: &'arena syn::Item) -> crate::Result<()> {
+    fn recognize_item(&mut self, item: &'ast syn::Item) -> crate::Result<()> {
         match item {
             syn::Item::Struct(item) => self.recognize_struct(item),
 
@@ -34,11 +64,11 @@ impl<'pass1, 'arena> Recognizer<'pass1, 'arena> {
 
             syn::Item::Use(item) => self.recognize_use(item),
 
-            _ => Err(crate::Error::UnsupportedItem(item.span())),
+            _ => Err(self.error(crate::Error::UnsupportedItem, item)),
         }
     }
 
-    fn recognize_struct(&mut self, item: &'arena syn::ItemStruct) -> crate::Result<()> {
+    fn recognize_struct(&mut self, item: &'ast syn::ItemStruct) -> crate::Result<()> {
         if util::ignore(&item.vis, &item.attrs) {
             return Ok(());
         }
@@ -47,7 +77,7 @@ impl<'pass1, 'arena> Recognizer<'pass1, 'arena> {
         let qname = self.module_name.join(&name);
 
         if item.generics.params.len() > 0 {
-            return Err(Error::GenericsNotPermitted(item.generics.span()));
+            return Err(self.error(Error::GenericsNotPermitted, &item.generics));
         }
 
         let public_fields = item
@@ -60,38 +90,28 @@ impl<'pass1, 'arena> Recognizer<'pass1, 'arena> {
             // All public fields: this is a struct.
             //
             // It can have methods, but they have to be `&self` or `self`.
-            self.parser.definitions.insert(
-                qname,
-                Definition {
-                    module: self.ast,
-                    kind: DefinitionKind::Record(item),
-                },
-            );
+            self.recognized
+                .insert(qname, self.definition(DefinitionKind::Record(item)));
             Ok(())
         } else if public_fields == 0 {
             // All private fields, this is a class
-            self.parser.definitions.insert(
-                qname,
-                Definition {
-                    module: self.ast,
-                    kind: DefinitionKind::Resource(item),
-                },
-            );
+            self.recognized
+                .insert(qname, self.definition(DefinitionKind::Resource(item)));
             Ok(())
         } else {
             // Some public, some private fields -- error.
 
-            Err(Error::MixedPublicPrivateFields(item.span()))
+            Err(self.error(Error::MixedPublicPrivateFields, item))
         }
     }
 
-    fn recognize_enum(&mut self, item: &'arena syn::ItemEnum) -> crate::Result<()> {
+    fn recognize_enum(&mut self, item: &'ast syn::ItemEnum) -> crate::Result<()> {
         if util::ignore(&item.vis, &item.attrs) {
             return Ok(());
         }
 
         if item.generics.params.len() > 0 {
-            return Err(Error::GenericsNotPermitted(item.generics.span()));
+            return Err(self.error(Error::GenericsNotPermitted, &item.generics));
         }
 
         let unignored_variants = item
@@ -109,27 +129,21 @@ impl<'pass1, 'arena> Recognizer<'pass1, 'arena> {
         let qname = self.module_name.join(&name);
 
         if variants_have_args {
-            self.parser.definitions.insert(
+            self.recognized.insert(
                 qname,
-                Definition {
-                    module: self.ast,
-                    kind: DefinitionKind::Variant(item, unignored_variants),
-                },
+                self.definition(DefinitionKind::Variant(item, unignored_variants)),
             );
             Ok(())
         } else {
-            self.parser.definitions.insert(
+            self.recognized.insert(
                 qname,
-                Definition {
-                    module: self.ast,
-                    kind: DefinitionKind::Enum(item, unignored_variants),
-                },
+                self.definition(DefinitionKind::Enum(item, unignored_variants)),
             );
             Ok(())
         }
     }
 
-    fn recognize_fn(&mut self, item: &'arena syn::ItemFn) -> crate::Result<()> {
+    fn recognize_fn(&mut self, item: &'ast syn::ItemFn) -> crate::Result<()> {
         if util::ignore(&item.vis, &item.attrs) {
             return Ok(());
         }
@@ -138,16 +152,11 @@ impl<'pass1, 'arena> Recognizer<'pass1, 'arena> {
         let qname = self.module_name.join(&name);
 
         if item.sig.generics.params.len() > 0 {
-            return Err(Error::GenericsNotPermitted(item.sig.generics.span()));
+            return Err(self.error(Error::GenericsNotPermitted, &item.sig.generics));
         }
 
-        self.parser.definitions.insert(
-            qname,
-            Definition {
-                module: self.ast,
-                kind: DefinitionKind::Function(item),
-            },
-        );
+        self.recognized
+            .insert(qname, self.definition(DefinitionKind::Function(item)));
         Ok(())
     }
 
@@ -156,7 +165,7 @@ impl<'pass1, 'arena> Recognizer<'pass1, 'arena> {
             return Ok(());
         }
 
-        Err(crate::Error::UnsupportedItem(item.span()))
+        Err(self.error(crate::Error::UnsupportedItem, item))
     }
 
     fn recognize_trait(&self, item: &syn::ItemTrait) -> Result<(), Error> {
@@ -164,7 +173,7 @@ impl<'pass1, 'arena> Recognizer<'pass1, 'arena> {
             return Ok(());
         }
 
-        Err(crate::Error::UnsupportedItem(item.span()))
+        Err(self.error(crate::Error::UnsupportedItem, item))
     }
 
     fn recognize_type(&self, item: &syn::ItemType) -> Result<(), Error> {
@@ -172,7 +181,7 @@ impl<'pass1, 'arena> Recognizer<'pass1, 'arena> {
             return Ok(());
         }
 
-        Err(crate::Error::UnsupportedItem(item.span()))
+        Err(self.error(crate::Error::UnsupportedItem, item))
     }
 
     fn recognize_use(&self, item: &syn::ItemUse) -> Result<(), Error> {
@@ -180,6 +189,6 @@ impl<'pass1, 'arena> Recognizer<'pass1, 'arena> {
             return Ok(());
         }
 
-        Err(crate::Error::UnsupportedItem(item.span()))
+        Err(self.error(crate::Error::UnsupportedItem, item))
     }
 }

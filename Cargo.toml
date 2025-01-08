@@ -10,6 +10,10 @@ documentation = "https://lingo-star.github.io/lingo-star"
 [lib]
 proc-macro = true
 
+[[test]]
+name = "harness"
+harness = false
+
 [dependencies]
 syn = "2.0"
 quote = "1.0"
@@ -21,3 +25,9 @@ members = [ "crates/cargo-lingo", "crates/lingo-star-idl",
     "demos/hello_world",
     "demos/hello_world/squared/",
 ]
+
+[dev-dependencies]
+anyhow = "1.0.95"
+lingo-star-idl = { path = "crates/lingo-star-idl" }
+progress_bar = "1.0.6"
+walkdir = "2.5.0"
