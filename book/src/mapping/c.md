@@ -1,6 +1,6 @@
 # Mapping to C
 
-The Carcin IDL is mapped to Java as follows:
+The GlueGun IDL is mapped to Java as follows:
 
 * Primitive types map to C in the obvious ways
 * Enums map without associated data map to Java enums

@@ -1,4 +1,4 @@
-# API descriptions in carcin
+# API descriptions in gluegun
 
 * API descriptions are
     * exported structs, enums

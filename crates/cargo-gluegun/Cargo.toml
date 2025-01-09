@@ -1,5 +1,5 @@
 [package]
-name = "cargo-carcin"
+name = "cargo-gluegun"
 version = "0.1.0"
 edition = "2021"
 

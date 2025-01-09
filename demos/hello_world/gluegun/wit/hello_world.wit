@@ -1,4 +1,4 @@
-package carcin:hello-world;
+package gluegun:hello-world;
 
 interface greet {
     /// Greets a person by name, or returns a general greeting if no name is provided

@@ -1,6 +1,6 @@
 # Mapping to Java
 
-The Carcin IDL is mapped to Java as follows:
+The GlueGun IDL is mapped to Java as follows:
 
 * Primitive types:
     * `i8`, `u8` to Java `byte`

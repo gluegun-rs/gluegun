@@ -1,18 +1,52 @@
-# Carcin: Write once, Rust anywhere
+# GlueGun: Write once, Rust anywhere
 
 > This is a **README FROM THE FUTURE**, in that it described the workflow for something that doesn't exist yet.
 
-**Carcin** is a project for authoring pure-Rust libraries that can be integrated into any language on any operating system or environment. *Carcin* can help you...
+> **GlueGunization** is a form of convergent evolution in which non-crab crustaceans evolve a crab-like body plan. The term was introduced into evolutionary biology by L. A. Borradaile, who described it as "the many attempts of Nature to evolve a crab". (--[Wikipedia](https://en.wikipedia.org/wiki/GlueGunisation))
 
-* publish a cross-language API for accessing your cloud service;
-    * *carcin* currently supports Java/Kotlin, Python, JavaScript, C, C++, and Go, but adding new languages is easy.
+**GlueGun** is a project for authoring pure-Rust libraries that can be integrated into any language on any operating system or environment. *GlueGun* can help you...
+
+* publish a cross-language API usable from Java/Kotlin, Python, Swift, JavaScript, C, C++, and Go (and adding more languages is easy);
 * package up common code for use across mobile devices.
 
-Want to see how easy *carcin* can be? Check out our [tutorial](./tutorial.md).
+## Just write an idiomatic Rust API and let GlueGun do the rest
+
+Using GlueGun starts by writing a Rust library. For example, maybe we have a `Greetings` type that can generate greetings in various languages. It has a "builder-style" method `language` for setting the language along with a main `greet` method that takes and returns a string:
+
+```rust
+pub struct Greetings {
+    language: String,
+}
+
+impl Greetings {
+    pub fn new() -> Self {
+        Self {
+            language: "en".to_string(),
+        }
+    }
+
+    pub fn language(mut self, language: &str) -> Self {
+        self.language = language.to_string();
+        self
+    }
+
+    pub fn greet(self, name: String) -> anyhow::Result<String>  {
+        match &self.language {
+            "en" => format!("Hello, {name}!"),
+            "es" => format!("Hola, {name}!"),
+            _ => anyhow!("unknown language {language}"),
+        }
+    }
+}
+```
+
+If you know Rust, the above should look pretty simple.
+
+Intrigued? Read more in our [tutorial](./tutorial.md).
 
 ## Pick your poison
 
-*carcin* can be used in three modes:
+*gluegun* can be used in three modes:
 
 | Mode                              | Performance | Sandboxing | Distribution                                    |
 | --------------------------------- | ----------- | ---------- | ----------------------------------------------- |

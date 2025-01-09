@@ -79,17 +79,17 @@ pub(super) const KNOWN_RUST_IMPL_TRAIT_TYPES: &[KnownRustType] = &[
         rust_name: RustName::ImplInto,
     },
     KnownRustType {
-        name: &["carcin", "MapLike"],
+        name: &["gluegun", "MapLike"],
         type_kind: TypeKindFn::Arity2(|key, value| TypeKind::Map { key, value }),
         rust_name: RustName::ImplMapLike,
     },
     KnownRustType {
-        name: &["carcin", "VecLike"],
+        name: &["gluegun", "VecLike"],
         type_kind: TypeKindFn::Arity1(|element| TypeKind::Vec { element }),
         rust_name: RustName::ImplVecLike,
     },
     KnownRustType {
-        name: &["carcin", "SetLike"],
+        name: &["gluegun", "SetLike"],
         type_kind: TypeKindFn::Arity1(|element| TypeKind::Set { element }),
         rust_name: RustName::ImplSetLike,
     },

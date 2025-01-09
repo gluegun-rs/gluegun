@@ -1,4 +1,4 @@
-use exports::carcin::hello_world::greet::Guest;
+use exports::gluegun::hello_world::greet::Guest;
 
 wit_bindgen::generate!({
     world: "host"

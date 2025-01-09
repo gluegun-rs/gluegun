@@ -1,5 +1,5 @@
 [package]
-name = "carcin-idl"
+name = "gluegun-idl"
 version = "0.1.0"
 edition = "2021"
 

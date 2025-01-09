@@ -1,3 +1,3 @@
-# The Carcin IDL
+# The GlueGun IDL
 
-The carcin IDL is available from the `carcin::idl` crate.
+The gluegun IDL is available from the `gluegun::idl` crate.

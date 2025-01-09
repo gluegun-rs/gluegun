@@ -1,5 +1,4 @@
 use anyhow::Context;
-use lingo_star_idl;
 use std::{
     ffi::OsStr,
     path::{Path, PathBuf},
@@ -83,7 +82,7 @@ fn run_idl_tests(tests: Vec<IdlTest>) -> anyhow::Result<()> {
 fn run_idl_test(test: &IdlTest) -> anyhow::Result<()> {
     let crate_name = test.rs_path.file_stem().ok_or_else(|| anyhow::anyhow!("no file name for `.rs` file in `{}`", test.rs_path.display()))?;
     let crate_name = crate_name.to_str().ok_or_else(|| anyhow::anyhow!("non-utf8 file name for `.rs` file in `{}`", test.rs_path.display()))?;
-    let parsed_idl = lingo_star_idl::Parser::new().parse_crate_named(crate_name, &test.rs_path).with_context(|| format!("failed to load `{}`", test.rs_path.display()))?;
+    let parsed_idl = gluegun_idl::Parser::new().parse_crate_named(crate_name, &test.rs_path).with_context(|| format!("failed to load `{}`", test.rs_path.display()))?;
     let idl_json = serde_json::to_string_pretty(&parsed_idl).with_context(|| format!("failed to serialize json from `{}`", test.rs_path.display()))?;
     let reference_json = std::fs::read_to_string(&test.idl_path).unwrap_or_default();
 
