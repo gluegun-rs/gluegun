@@ -307,19 +307,27 @@ impl<'arena> Elaborator<'arena> {
                 // Type names can either come from the user or be a reference to something in the Rust stdlib
                 // or well-known Rust crates.
 
-                let (idents, tys) = self.elaborate_type_path(self_ty, type_path)?;
-
-                if let Some(user_ty) = self.elaborate_user_type(ty, &idents, &tys)? {
-                    // Found a type defined in this module.
-                    Ok(user_ty)
-                } else if let Some(rust_ty) =
-                    elaborate_rust_type(self.source(), ty, &idents, &tys, &KNOWN_RUST_TYPES)?
-                {
-                    // Found a well-known Rust type.
-                    Ok(rust_ty)
+                if type_path.qself.is_none() && type_path.path.is_ident("Self") {
+                    if let Some(self_ty) = self_ty {
+                        Ok(self_ty.clone())
+                    } else {
+                        Err(self.error(Error::UnresolvedName, &type_path))
+                    }
                 } else {
-                    // Unknown or unsupported type.
-                    Err(self.error(Error::UnresolvedName, &type_path))
+                    let (idents, tys) = self.elaborate_type_path(self_ty, type_path)?;
+
+                    if let Some(user_ty) = self.elaborate_user_type(ty, &idents, &tys)? {
+                        // Found a type defined in this module.
+                        Ok(user_ty)
+                    } else if let Some(rust_ty) =
+                        elaborate_rust_type(self.source(), ty, &idents, &tys, &KNOWN_RUST_TYPES)?
+                    {
+                        // Found a well-known Rust type.
+                        Ok(rust_ty)
+                    } else {
+                        // Unknown or unsupported type.
+                        Err(self.error(Error::UnresolvedName, &type_path))
+                    }
                 }
             }
 

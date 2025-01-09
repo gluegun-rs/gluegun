@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use syn::spanned::Spanned;
+use syn::{spanned::Spanned, token::Impl};
 
 use crate::{Error, ErrorSpan, QualifiedName, SourcePath};
 
@@ -61,6 +61,9 @@ impl<'ast> Recognizer<'ast> {
             syn::Item::Type(item) => self.recognize_type(item),
 
             syn::Item::Use(item) => self.recognize_use(item),
+
+            // Ignore impls
+            syn::Item::Impl(_item) => Ok(()),
 
             _ => Err(self.error(crate::Error::UnsupportedItem, item)),
         }

@@ -1,4 +1,4 @@
-use crate::{Error, RustName, RustReprKind, SourcePath, Ty, TypeKind};
+use crate::{Error, RustName, RustReprKind, Scalar, SourcePath, Ty, TypeKind};
 
 /// Defines a known Rust type that can be matched against.
 /// See [`elaborate_rust_type`][].
@@ -62,6 +62,57 @@ pub(super) const KNOWN_RUST_TYPES: &[KnownRustType] = &[
         name: &["std", "path", "PathBuf"],
         type_kind: TypeKindFn::Arity0(|| TypeKind::String),
         rust_name: RustName::String,
+    },
+    
+    KnownRustType {
+        name: &["u8"],
+        type_kind: TypeKindFn::Arity0(|| TypeKind::Scalar(Scalar::U8)),
+        rust_name: RustName::Scalar(Scalar::U8),
+    },
+    KnownRustType {
+        name: &["u16"],
+        type_kind: TypeKindFn::Arity0(|| TypeKind::Scalar(Scalar::U16)), 
+        rust_name: RustName::Scalar(Scalar::U16),
+    },
+    KnownRustType {
+        name: &["u32"],
+        type_kind: TypeKindFn::Arity0(|| TypeKind::Scalar(Scalar::U32)),
+        rust_name: RustName::Scalar(Scalar::U32),
+    },
+    KnownRustType {
+        name: &["u64"],
+        type_kind: TypeKindFn::Arity0(|| TypeKind::Scalar(Scalar::U64)),
+        rust_name: RustName::Scalar(Scalar::U64),
+    },
+    KnownRustType {
+        name: &["i8"],
+        type_kind: TypeKindFn::Arity0(|| TypeKind::Scalar(Scalar::I8)),
+        rust_name: RustName::Scalar(Scalar::I8),
+    },
+    KnownRustType {
+        name: &["i16"],
+        type_kind: TypeKindFn::Arity0(|| TypeKind::Scalar(Scalar::I16)),
+        rust_name: RustName::Scalar(Scalar::I16),
+    },
+    KnownRustType {
+        name: &["i32"],
+        type_kind: TypeKindFn::Arity0(|| TypeKind::Scalar(Scalar::I32)),
+        rust_name: RustName::Scalar(Scalar::I32),
+    },
+    KnownRustType {
+        name: &["i64"],
+        type_kind: TypeKindFn::Arity0(|| TypeKind::Scalar(Scalar::I64)),
+        rust_name: RustName::Scalar(Scalar::I64),
+    },
+    KnownRustType {
+        name: &["f32"],
+        type_kind: TypeKindFn::Arity0(|| TypeKind::Scalar(Scalar::F32)),
+        rust_name: RustName::Scalar(Scalar::F32),
+    },
+    KnownRustType {
+        name: &["f64"],
+        type_kind: TypeKindFn::Arity0(|| TypeKind::Scalar(Scalar::F64)),
+        rust_name: RustName::Scalar(Scalar::F64),
     },
 ];
 

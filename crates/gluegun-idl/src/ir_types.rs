@@ -152,4 +152,5 @@ pub enum RustName {
     ImplInto,
     Path,
     Vec,
+    Scalar(Scalar),
 }

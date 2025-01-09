@@ -1,0 +1,286 @@
+{
+  "crate_name": {
+    "text": "character"
+  },
+  "definitions": [
+    [
+      {
+        "names": [
+          {
+            "text": "character"
+          },
+          {
+            "text": "Character"
+          }
+        ]
+      },
+      {
+        "Resource": {
+          "name": {
+            "text": "Character"
+          },
+          "methods": [
+            {
+              "category": "Constructor",
+              "name": {
+                "text": "new"
+              },
+              "signature": {
+                "is_async": "No",
+                "inputs": [
+                  {
+                    "name": {
+                      "text": "name"
+                    },
+                    "ty": {
+                      "kind": "String",
+                      "rust_repr": {
+                        "kind": {
+                          "Ref": {
+                            "kind": {
+                              "Named": [
+                                "Str",
+                                []
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "name": {
+                      "text": "class"
+                    },
+                    "ty": {
+                      "kind": {
+                        "UserType": {
+                          "qname": {
+                            "names": [
+                              {
+                                "text": "character"
+                              },
+                              {
+                                "text": "Class"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "rust_repr": {
+                        "kind": {
+                          "User": {
+                            "names": [
+                              {
+                                "text": "character"
+                              },
+                              {
+                                "text": "Class"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                ],
+                "output_ty": {
+                  "kind": {
+                    "UserType": {
+                      "qname": {
+                        "names": [
+                          {
+                            "text": "character"
+                          },
+                          {
+                            "text": "Character"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "rust_repr": {
+                    "kind": {
+                      "User": {
+                        "names": [
+                          {
+                            "text": "character"
+                          },
+                          {
+                            "text": "Character"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "category": {
+                "InstanceMethod": "ByRef"
+              },
+              "name": {
+                "text": "class"
+              },
+              "signature": {
+                "is_async": "No",
+                "inputs": [],
+                "output_ty": {
+                  "kind": {
+                    "UserType": {
+                      "qname": {
+                        "names": [
+                          {
+                            "text": "character"
+                          },
+                          {
+                            "text": "Class"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "rust_repr": {
+                    "kind": {
+                      "User": {
+                        "names": [
+                          {
+                            "text": "character"
+                          },
+                          {
+                            "text": "Class"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "category": {
+                "InstanceMethod": "ByRef"
+              },
+              "name": {
+                "text": "name"
+              },
+              "signature": {
+                "is_async": "No",
+                "inputs": [],
+                "output_ty": {
+                  "kind": "String",
+                  "rust_repr": {
+                    "kind": {
+                      "Ref": {
+                        "kind": {
+                          "Named": [
+                            "Str",
+                            []
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "category": {
+                "InstanceMethod": "ByRefMut"
+              },
+              "name": {
+                "text": "level_up"
+              },
+              "signature": {
+                "is_async": "No",
+                "inputs": [],
+                "output_ty": {
+                  "kind": {
+                    "Tuple": {
+                      "elements": []
+                    }
+                  },
+                  "rust_repr": {
+                    "kind": {
+                      "Tuple": []
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "category": {
+                "InstanceMethod": "ByRef"
+              },
+              "name": {
+                "text": "level"
+              },
+              "signature": {
+                "is_async": "No",
+                "inputs": [],
+                "output_ty": {
+                  "kind": {
+                    "Scalar": "U32"
+                  },
+                  "rust_repr": {
+                    "kind": {
+                      "Named": [
+                        {
+                          "Scalar": "U32"
+                        },
+                        []
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    [
+      {
+        "names": [
+          {
+            "text": "character"
+          },
+          {
+            "text": "Class"
+          }
+        ]
+      },
+      {
+        "Enum": {
+          "name": {
+            "text": "Class"
+          },
+          "arms": [
+            {
+              "name": {
+                "text": "Fighter"
+              }
+            },
+            {
+              "name": {
+                "text": "Wizard"
+              }
+            },
+            {
+              "name": {
+                "text": "Rogue"
+              }
+            },
+            {
+              "name": {
+                "text": "Cleric"
+              }
+            }
+          ],
+          "methods": []
+        }
+      }
+    ]
+  ]
+}
