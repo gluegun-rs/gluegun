@@ -2,7 +2,7 @@
 
 ## How gluegun works
 
-You start by creating a Rust library whose public interfaces follows the *gluegun* conventions, which means that you stick to Rust types and features that can readily be translated across languages. The body of those functions can make use of whatever logic you want. For example, suppose you wanted to publish some logic based on Rust's best-in-class [regex][] library. You might write:
+You start by creating a Rust library whose public interfaces follows the GlueGun conventions, which means that you stick to Rust types and features that can readily be translated across languages. The body of those functions can make use of whatever logic you want. For example, suppose you wanted to publish some logic based on Rust's best-in-class [regex][] library. You might write:
 
 ```rust
 pub fn find_username(s: &str) -> String {
@@ -18,7 +18,7 @@ pub fn find_username(s: &str) -> String {
 You would then install and run `gluegun`:
 
 ```bash
-> cargo install gluegun
+> cargo install cargo-gluegun
 > cargo gluegun build
 ```
 
