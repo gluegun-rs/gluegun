@@ -71,7 +71,36 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79296716171880943b8470b5f8d03aa55eb2e645a4874bdbb28adb49162e012c"
 
 [[package]]
-name = "cargo-lingo"
+name = "carcin"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "carcin-idl",
+ "lazy_static",
+ "proc-macro2",
+ "progress_bar",
+ "quote",
+ "serde_json",
+ "similar",
+ "syn 2.0.94",
+ "walkdir",
+]
+
+[[package]]
+name = "carcin-idl"
+version = "0.1.0"
+dependencies = [
+ "accessors-rs",
+ "proc-macro2",
+ "serde",
+ "serde_with",
+ "syn 2.0.94",
+ "thiserror",
+ "typed-arena",
+]
+
+[[package]]
+name = "cargo-carcin"
 version = "0.1.0"
 
 [[package]]
@@ -193,7 +222,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
-name = "hello-world-squared"
+name = "hello-world-carcin"
 version = "0.1.0"
 dependencies = [
  "hello_world",
@@ -300,35 +329,6 @@ name = "libc"
 version = "0.2.169"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5aba8db14291edd000dfcc4d620c7ebfb122c613afb886ca8803fa4e128a20a"
-
-[[package]]
-name = "lingo-star"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "lazy_static",
- "lingo-star-idl",
- "proc-macro2",
- "progress_bar",
- "quote",
- "serde_json",
- "similar",
- "syn 2.0.94",
- "walkdir",
-]
-
-[[package]]
-name = "lingo-star-idl"
-version = "0.1.0"
-dependencies = [
- "accessors-rs",
- "proc-macro2",
- "serde",
- "serde_with",
- "syn 2.0.94",
- "thiserror",
- "typed-arena",
-]
 
 [[package]]
 name = "log"

@@ -1,6 +1,6 @@
 # Mapping to Java
 
-The Squared IDL is mapped to Java as follows:
+The Carcin IDL is mapped to Java as follows:
 
 * Primitive types:
     * `i8`, `u8` to Java `byte`

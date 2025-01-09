@@ -22,7 +22,7 @@ pub enum Error {
     #[error("{0}: unrecognized Rust item")]
     UnrecognizedItem(ErrorSpan),
 
-    #[error("{0}: unsupported Rust item; consider using `#[squared::ignore]`")]
+    #[error("{0}: unsupported Rust item; consider using `#[carcin::ignore]`")]
     UnsupportedItem(ErrorSpan),
 
     #[error("{0}: only `self`, `&self`, and `&mut self` are supported")]

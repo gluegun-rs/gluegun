@@ -1,4 +1,4 @@
-# API descriptions in squared
+# API descriptions in carcin
 
 * API descriptions are
     * exported structs, enums

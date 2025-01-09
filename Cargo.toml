@@ -1,11 +1,11 @@
 [package]
-name = "lingo-star"
+name = "carcin"
 version = "0.1.0"
 edition = "2021"
 description = "Placeholder"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/lingo-star/lingo-star"
-documentation = "https://lingo-star.github.io/lingo-star"
+repository = "https://github.com/carcin/carcin"
+documentation = "https://carcin.github.io/carcin"
 
 [lib]
 proc-macro = true
@@ -21,15 +21,15 @@ proc-macro2 = "1.0"
 
 
 [workspace]
-members = [ "crates/cargo-lingo", "crates/lingo-star-idl",
+members = [ "crates/cargo-carcin", "crates/carcin-idl",
     "demos/hello_world",
-    "demos/hello_world/squared/",
+    "demos/hello_world/carcin/",
 ]
 
 [dev-dependencies]
 anyhow = "1.0.95"
 lazy_static = "1.5.0"
-lingo-star-idl = { path = "crates/lingo-star-idl" }
+carcin-idl = { path = "crates/carcin-idl" }
 progress_bar = "1.0.6"
 serde_json = "1.0.135"
 similar = "2.6.0"

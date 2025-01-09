@@ -1,6 +1,6 @@
 # WebAssembly Interface Types
 
-The Squared IDL can be directly mapped to [WebAssembly interface types][WIT], for the most part:
+The Carcin IDL can be directly mapped to [WebAssembly interface types][WIT], for the most part:
 
 * Primitive types map directly to WIT primitive types.
 * Collection types map to WIT lists:

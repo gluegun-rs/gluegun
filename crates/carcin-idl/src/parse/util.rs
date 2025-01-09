@@ -17,9 +17,9 @@ pub(super) fn ignore_from_attrs(attrs: &[syn::Attribute]) -> bool {
         return true;
     }
 
-    // Ignore things tagged with `squared::ignore`
+    // Ignore things tagged with `carcin::ignore`
     if attrs.iter().any(|attr| attr.path().is_ident("ignore")) {
-        // FIXME: check that attribute is "squared::ignore"
+        // FIXME: check that attribute is "carcin::ignore"
         return true;
     }
 

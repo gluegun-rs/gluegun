@@ -1,18 +1,18 @@
-# Squared: Write once, Rust anywhere
+# Carcin: Write once, Rust anywhere
 
 > This is a **README FROM THE FUTURE**, in that it described the workflow for something that doesn't exist yet.
 
-**Squared** is a project for authoring pure-Rust libraries that can be integrated into any language on any operating system or environment. *Squared* can help you...
+**Carcin** is a project for authoring pure-Rust libraries that can be integrated into any language on any operating system or environment. *Carcin* can help you...
 
 * publish a cross-language API for accessing your cloud service;
-    * *squared* currently supports Java/Kotlin, Python, JavaScript, C, C++, and Go, but adding new languages is easy.
+    * *carcin* currently supports Java/Kotlin, Python, JavaScript, C, C++, and Go, but adding new languages is easy.
 * package up common code for use across mobile devices.
 
-Want to see how easy *squared* can be? Check out our [tutorial](./tutorial.md).
+Want to see how easy *carcin* can be? Check out our [tutorial](./tutorial.md).
 
 ## Pick your poison
 
-*squared* can be used in three modes:
+*carcin* can be used in three modes:
 
 | Mode                              | Performance | Sandboxing | Distribution                                    |
 | --------------------------------- | ----------- | ---------- | ----------------------------------------------- |

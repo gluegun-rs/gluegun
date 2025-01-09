@@ -1,3 +1,3 @@
-# The Squared IDL
+# The Carcin IDL
 
-The squared IDL is available from the `squared::idl` crate.
+The carcin IDL is available from the `carcin::idl` crate.

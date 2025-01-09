@@ -1,6 +1,6 @@
 # Defining your public interface
 
-*squared* works by parsing your `lib.rs` module to determine your public interface. It only allows the following kinds of `pub` items:
+*carcin* works by parsing your `lib.rs` module to determine your public interface. It only allows the following kinds of `pub` items:
 
 * `pub fn` to define a public function.
 * `pub struct` or `pub enum` to define a public struct, enum, or class (see below).
@@ -21,7 +21,7 @@ The argument and return types of these functions have to consist of [translatabl
 
 ## Structs defined with the "class" pattern
 
-*Squared* recognizes the common Rust idiom of a public struct with private members and public methods defined in an `impl` block. This pattern is called the *class pattern* and, for OO languages, it will be translated into a class.
+*Carcin* recognizes the common Rust idiom of a public struct with private members and public methods defined in an `impl` block. This pattern is called the *class pattern* and, for OO languages, it will be translated into a class.
 
 ```rust
 pub struct MyClass {
@@ -80,14 +80,14 @@ You include a `pub use` to import things from elsewhere in your crate and includ
 pub use crate::path::to::Something;
 ```
 
-*squared* will look for the definition of `Something` in `src/path/to.rs`.
+*carcin* will look for the definition of `Something` in `src/path/to.rs`.
 
 ## Private members and ignored items
 
-Normally all public entries defined in your lib.rs must be fit one of the above categories so that *squared* knows how to translate them. You can also have arbitrary Rust code so long as the items are private to your crate.
+Normally all public entries defined in your lib.rs must be fit one of the above categories so that *carcin* knows how to translate them. You can also have arbitrary Rust code so long as the items are private to your crate.
 
 Sometimes you would like to include public Rust members that are not part of your public interface.
-You can do that by annotation those members with `#[squared::ignore]`.
+You can do that by annotation those members with `#[carcin::ignore]`.
 
 ## Translating Rust types
 
@@ -104,7 +104,7 @@ Your public functions and methods can use the following Rust types.
 * user-defined types in your library:
     * [simple structs and enums](#public-structs-and-enums)
     * structs following the [class pattern](#public-classes)
-* user-defined types from other squared libraries:
+* user-defined types from other carcin libraries:
     * XXX importing from other libraries?
 
 Function parameters can be `&`-references to the above types.
@@ -113,11 +113,11 @@ Function return types must be owned.
 
 ### Toll-free bridging
 
-Using native Rust types for collections is convenient but can incur a performance cost as data must be copied out from native collections into the Rust type and vice versa. To avoid this you can use "toll-free" bridging in your Rust code: this means that you code traits defined in the [squared stdlib](./stdlib.md):
+Using native Rust types for collections is convenient but can incur a performance cost as data must be copied out from native collections into the Rust type and vice versa. To avoid this you can use "toll-free" bridging in your Rust code: this means that you code traits defined in the [carcin stdlib](./stdlib.md):
 
 * `impl MapLike<K,V>`
 * `impl VecLike<T>`
 * `impl SetLike<E>`
 
-You can also write your function to return a type `R` implementing one of those traits. Squared will recognize this pattern and pick appropriate instances of those traits for best performance. For example, for C++, `MapLike` can be instantiated with the STL maps, avoiding the need to copy data into a Rust map. In some cases multiple variants may be created (e.g., if the function is invoked multiple times).
+You can also write your function to return a type `R` implementing one of those traits. Carcin will recognize this pattern and pick appropriate instances of those traits for best performance. For example, for C++, `MapLike` can be instantiated with the STL maps, avoiding the need to copy data into a Rust map. In some cases multiple variants may be created (e.g., if the function is invoked multiple times).
 

@@ -1,8 +1,8 @@
 # Tutorial
 
-## How squared works
+## How carcin works
 
-You start by creating a Rust library whose public interfaces follows the *squared* conventions, which means that you stick to Rust types and features that can readily be translated across languages. The body of those functions can make use of whatever logic you want. For example, suppose you wanted to publish some logic based on Rust's best-in-class [regex][] library. You might write:
+You start by creating a Rust library whose public interfaces follows the *carcin* conventions, which means that you stick to Rust types and features that can readily be translated across languages. The body of those functions can make use of whatever logic you want. For example, suppose you wanted to publish some logic based on Rust's best-in-class [regex][] library. You might write:
 
 ```rust
 pub fn find_username(s: &str) -> String {
@@ -15,28 +15,28 @@ pub fn find_username(s: &str) -> String {
 }
 ```
 
-You would then install and run `squared`:
+You would then install and run `carcin`:
 
 ```bash
-> cargo install squared
-> cargo squared build
+> cargo install carcin
+> cargo carcin build
 ```
 
-Since you don't have a `squared.toml`, you'll be asked a few questions, and then squared will run. The result will be a set of libraries that allow your code to be used transparently from other languages. You can also run `cargo squared setup` if you prefer to just run the setup commands and not do the actual build.
+Since you don't have a `carcin.toml`, you'll be asked a few questions, and then carcin will run. The result will be a set of libraries that allow your code to be used transparently from other languages. You can also run `cargo carcin setup` if you prefer to just run the setup commands and not do the actual build.
 
 ## More advanced Rust code
 
-The `find_username` function is fairly basic. `squared` supports more advanced interfaces as well.
+The `find_username` function is fairly basic. `carcin` supports more advanced interfaces as well.
 
 ### Public item types
 
-squared works by parsing your `lib.rs` module to determine your public interface. It only allows the following kinds of `pub` items:
+carcin works by parsing your `lib.rs` module to determine your public interface. It only allows the following kinds of `pub` items:
 
 * `pub fn` to define a public function.
 * `pub struct` or `pub enum` to define a public struct, enum, or class (see below).
 * `pub use crate::some::path` to publish some part of your crate.
 
-You will get an error if you have other public items in your `lib.rs` because *squared* does not know how to translate them to a public API. If you wish to include them anyway, you can tag them with the `#[squared::ignore]` attribute. This will cause them to be ignored, which means that they will only be available to Rust consumers of your library.
+You will get an error if you have other public items in your `lib.rs` because *carcin* does not know how to translate them to a public API. If you wish to include them anyway, you can tag them with the `#[carcin::ignore]` attribute. This will cause them to be ignored, which means that they will only be available to Rust consumers of your library.
 
 ### Basic Rust types
 
@@ -113,8 +113,8 @@ impl MyResource {
 
 ## Frequently asked questions
 
-### Why the name squared?
+### Why the name carcin?
 
-The name *squared* comes from the idea that this package enables clean interop between various languages. Ordinarily that would require N^2 different bits of code, but since *squared* leverages WebAssembly's [interface types][wit], we can enable interop with just one.
+The name *carcin* comes from the idea that this package enables clean interop between various languages. Ordinarily that would require N^2 different bits of code, but since *carcin* leverages WebAssembly's [interface types][wit], we can enable interop with just one.
 
 [wit]: https://component-model.bytecodealliance.org/design/wit.html
