@@ -1,21 +1,43 @@
 use std::path::Path;
 
-use crate::{Error, LingoStarIdl, Name, QualifiedName, SourcePath};
+use crate::{Error, Idl, Name, QualifiedName, SourcePath};
 
-/// Given a path to a Rust source (typically `src/lib.rs` or some such)
-/// parses and extracts the IDL entries.
-pub fn parse_path(rs_path: &Path) -> crate::Result<LingoStarIdl> {
-    let crate_name = extract_crate_name(rs_path)?;
-    let arena = AstArena::default();
-    let ast = arena.parse_file(rs_path)?;
-    let crate_qname = QualifiedName::from(&crate_name);
-    let source = SourcePath::new(rs_path);
-    let recognized = pass1::Recognizer::new(&source, crate_qname, ast).into_recognized()?;
-    let elaborated = pass2::Elaborator::new(recognized).into_elaborated_items()?;
-    Ok(LingoStarIdl {
-        crate_name: crate_name,
-        definitions: elaborated,
-    })
+pub struct Parser {
+}
+
+impl Parser {
+    pub fn new() -> Self {
+        Self {
+        }
+    }
+
+    /// Parse the crate with the given name and the path to its `lib.rs`.
+    pub fn parse_crate_named(
+        &mut self,
+        crate_name: impl Into<Name>,
+        crate_path: impl AsRef<Path>,
+    ) -> crate::Result<Idl> {
+        let crate_name: Name = crate_name.into();
+        let crate_path: &Path = crate_path.as_ref();
+        let arena = AstArena::default();
+        let ast = arena.parse_file(crate_path)?;
+        let crate_qname = QualifiedName::from(&crate_name);
+        let source = SourcePath::new(crate_path);
+        let recognized = pass1::Recognizer::new(&source, crate_qname, ast).into_recognized()?;
+        let elaborated = pass2::Elaborator::new(recognized).into_elaborated_items()?;
+        Ok(Idl {
+            crate_name,
+            definitions: elaborated,
+        })
+    }
+
+    /// Convenient function to add the crate at `rs_path`, inferring the crate name,
+    /// and then invoke [`Self::parse_crate_named`][].
+    pub fn parse_crate(&mut self, crate_path: impl AsRef<Path>) -> crate::Result<Idl> {
+        let crate_path: &Path = crate_path.as_ref();
+        let crate_name = extract_crate_name(crate_path)?;
+        self.parse_crate_named(crate_name, crate_path)
+    }
 }
 
 /// We deduce the crate name based on the directory.
@@ -56,7 +78,7 @@ fn extract_crate_name(rs_path: &Path) -> crate::Result<Name> {
         return Err(Error::InvalidPath(rs_path.to_owned()));
     };
 
-    Ok(Name::from_os_string(crate_name)?)
+    Ok(Name::try_from(crate_name)?)
 }
 
 #[derive(Default)]

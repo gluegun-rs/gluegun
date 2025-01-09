@@ -28,6 +28,9 @@ members = [ "crates/cargo-lingo", "crates/lingo-star-idl",
 
 [dev-dependencies]
 anyhow = "1.0.95"
+lazy_static = "1.5.0"
 lingo-star-idl = { path = "crates/lingo-star-idl" }
 progress_bar = "1.0.6"
+serde_json = "1.0.135"
+similar = "2.6.0"
 walkdir = "2.5.0"

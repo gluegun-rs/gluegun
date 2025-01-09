@@ -39,9 +39,7 @@ impl<'ast> Recognizer<'ast> {
         variant(self.source.span(spanned))
     }
 
-    pub(super) fn into_recognized(
-        mut self,
-    ) -> crate::Result<Arc<BTreeMap<QualifiedName, Definition<'ast>>>> {
+    pub(super) fn into_recognized(mut self) -> crate::Result<Arc<BTreeMap<QualifiedName, Definition<'ast>>>> {
         for item in &self.ast.items {
             self.recognize_item(item)?;
         }
@@ -90,13 +88,17 @@ impl<'ast> Recognizer<'ast> {
             // All public fields: this is a struct.
             //
             // It can have methods, but they have to be `&self` or `self`.
-            self.recognized
-                .insert(qname, self.definition(DefinitionKind::Record(item)));
+            self.recognized.insert(
+                qname,
+                self.definition(DefinitionKind::Record(item)),
+            );
             Ok(())
         } else if public_fields == 0 {
             // All private fields, this is a class
-            self.recognized
-                .insert(qname, self.definition(DefinitionKind::Resource(item)));
+            self.recognized.insert(
+                qname,
+                self.definition(DefinitionKind::Resource(item)),
+            );
             Ok(())
         } else {
             // Some public, some private fields -- error.
@@ -155,8 +157,10 @@ impl<'ast> Recognizer<'ast> {
             return Err(self.error(Error::GenericsNotPermitted, &item.sig.generics));
         }
 
-        self.recognized
-            .insert(qname, self.definition(DefinitionKind::Function(item)));
+        self.recognized.insert(
+            qname,
+            self.definition(DefinitionKind::Function(item)),
+        );
         Ok(())
     }
 

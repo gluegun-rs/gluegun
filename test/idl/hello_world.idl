@@ -1,0 +1,41 @@
+{
+  "crate_name": {
+    "text": "hello_world"
+  },
+  "definitions": [
+    [
+      {
+        "names": [
+          {
+            "text": "hello_world"
+          },
+          {
+            "text": "hello_world"
+          }
+        ]
+      },
+      {
+        "Function": {
+          "name": {
+            "text": "hello_world"
+          },
+          "signature": {
+            "is_async": "No",
+            "inputs": [],
+            "output_ty": {
+              "kind": "String",
+              "rust_repr": {
+                "kind": {
+                  "Named": [
+                    "String",
+                    []
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  ]
+}

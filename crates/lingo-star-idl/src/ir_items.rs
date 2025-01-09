@@ -1,14 +1,18 @@
-use std::{collections::BTreeMap, ffi::OsStr};
+use std::{collections::BTreeMap, ffi::{OsStr, OsString}};
 
 use accessors_rs::Accessors;
 use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
 
 use crate::{Error, Ty};
 
+#[serde_as]
 #[derive(Accessors, Clone, Debug, Serialize, Deserialize)]
 #[accessors(get)]
-pub struct LingoStarIdl {
+pub struct Idl {
     pub(crate) crate_name: Name,
+
+    #[serde_as(as = "Vec<(_, _)>")]
     pub(crate) definitions: BTreeMap<QualifiedName, Item>,
 }
 
@@ -42,7 +46,7 @@ impl QualifiedName {
     /// Set the name to whatever the module is that contains `name` (removes the last item;
     /// errors if `name` is empty).
     pub(crate) fn set_to_module_of(&mut self, name: &QualifiedName) {
-        assert!(!self.names.is_empty());
+        assert!(!name.names.is_empty());
         let len = name.names.len();
         self.names.extend(name.names.iter().take(len - 1).cloned());
     }
@@ -69,16 +73,41 @@ impl Name {
             text: ident.to_string(),
         }
     }
+}
 
-    /// Create a name from an O/S string.
-    pub(crate) fn from_os_string(ident: &OsStr) -> crate::Result<Self> {
-        let Some(s) = ident.to_str() else {
-            return Err(Error::NotUtf8(ident.to_owned()));
+impl From<&str> for Name {
+    fn from(s: &str) -> Self {
+        Name {
+            text: s.to_string(),
+        }
+    }
+}
+
+impl From<String> for Name {
+    fn from(s: String) -> Self {
+        Name { text: s }
+    }
+}
+
+impl TryFrom<&OsStr> for Name {
+    type Error = crate::Error;
+
+    fn try_from(value: &OsStr) -> crate::Result<Self> {
+        let Some(s) = value.to_str() else {
+            return Err(Error::NotUtf8(value.to_owned()));
         };
 
         Ok(Name {
             text: s.to_string(),
         })
+    }
+}
+
+impl TryFrom<OsString> for Name {
+    type Error = crate::Error;
+
+    fn try_from(value: OsString) -> crate::Result<Self> {
+        Name::try_from(&value[..])
     }
 }
 
