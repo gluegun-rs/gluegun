@@ -1,0 +1,194 @@
+{
+  "crate_name": {
+    "text": "greetings"
+  },
+  "definitions": [
+    [
+      {
+        "names": [
+          {
+            "text": "greetings"
+          },
+          {
+            "text": "Greetings"
+          }
+        ]
+      },
+      {
+        "Resource": {
+          "name": {
+            "text": "Greetings"
+          },
+          "methods": [
+            {
+              "category": "Constructor",
+              "name": {
+                "text": "new"
+              },
+              "signature": {
+                "is_async": "No",
+                "inputs": [],
+                "output_ty": {
+                  "main_ty": {
+                    "kind": {
+                      "UserType": {
+                        "qname": {
+                          "names": [
+                            {
+                              "text": "greetings"
+                            },
+                            {
+                              "text": "Greetings"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "rust_repr": {
+                      "kind": {
+                        "User": {
+                          "names": [
+                            {
+                              "text": "greetings"
+                            },
+                            {
+                              "text": "Greetings"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "error_ty": null
+                }
+              }
+            },
+            {
+              "category": {
+                "BuilderMethod": "ByValue"
+              },
+              "name": {
+                "text": "language"
+              },
+              "signature": {
+                "is_async": "No",
+                "inputs": [
+                  {
+                    "name": {
+                      "text": "language"
+                    },
+                    "ty": {
+                      "kind": "String",
+                      "rust_repr": {
+                        "kind": {
+                          "Ref": {
+                            "kind": {
+                              "Named": [
+                                "Str",
+                                [],
+                                {}
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                ],
+                "output_ty": {
+                  "main_ty": {
+                    "kind": {
+                      "UserType": {
+                        "qname": {
+                          "names": [
+                            {
+                              "text": "greetings"
+                            },
+                            {
+                              "text": "Greetings"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "rust_repr": {
+                      "kind": {
+                        "User": {
+                          "names": [
+                            {
+                              "text": "greetings"
+                            },
+                            {
+                              "text": "Greetings"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "error_ty": null
+                }
+              }
+            },
+            {
+              "category": {
+                "InstanceMethod": "ByValue"
+              },
+              "name": {
+                "text": "greet"
+              },
+              "signature": {
+                "is_async": "No",
+                "inputs": [
+                  {
+                    "name": {
+                      "text": "name"
+                    },
+                    "ty": {
+                      "kind": "String",
+                      "rust_repr": {
+                        "kind": {
+                          "Named": [
+                            "String",
+                            [],
+                            {}
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ],
+                "output_ty": {
+                  "main_ty": {
+                    "kind": "String",
+                    "rust_repr": {
+                      "kind": {
+                        "Named": [
+                          "String",
+                          [],
+                          {}
+                        ]
+                      }
+                    }
+                  },
+                  "error_ty": {
+                    "kind": "Error",
+                    "rust_repr": {
+                      "kind": {
+                        "Named": [
+                          "AnyhowError",
+                          [],
+                          {}
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  ]
+}

@@ -40,7 +40,8 @@
                             "kind": {
                               "Named": [
                                 "Str",
-                                []
+                                [],
+                                {}
                               ]
                             }
                           }
@@ -85,34 +86,37 @@
                   }
                 ],
                 "output_ty": {
-                  "kind": {
-                    "UserType": {
-                      "qname": {
-                        "names": [
-                          {
-                            "text": "character"
-                          },
-                          {
-                            "text": "Character"
-                          }
-                        ]
+                  "main_ty": {
+                    "kind": {
+                      "UserType": {
+                        "qname": {
+                          "names": [
+                            {
+                              "text": "character"
+                            },
+                            {
+                              "text": "Character"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "rust_repr": {
+                      "kind": {
+                        "User": {
+                          "names": [
+                            {
+                              "text": "character"
+                            },
+                            {
+                              "text": "Character"
+                            }
+                          ]
+                        }
                       }
                     }
                   },
-                  "rust_repr": {
-                    "kind": {
-                      "User": {
-                        "names": [
-                          {
-                            "text": "character"
-                          },
-                          {
-                            "text": "Character"
-                          }
-                        ]
-                      }
-                    }
-                  }
+                  "error_ty": null
                 }
               }
             },
@@ -127,34 +131,37 @@
                 "is_async": "No",
                 "inputs": [],
                 "output_ty": {
-                  "kind": {
-                    "UserType": {
-                      "qname": {
-                        "names": [
-                          {
-                            "text": "character"
-                          },
-                          {
-                            "text": "Class"
-                          }
-                        ]
+                  "main_ty": {
+                    "kind": {
+                      "UserType": {
+                        "qname": {
+                          "names": [
+                            {
+                              "text": "character"
+                            },
+                            {
+                              "text": "Class"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "rust_repr": {
+                      "kind": {
+                        "User": {
+                          "names": [
+                            {
+                              "text": "character"
+                            },
+                            {
+                              "text": "Class"
+                            }
+                          ]
+                        }
                       }
                     }
                   },
-                  "rust_repr": {
-                    "kind": {
-                      "User": {
-                        "names": [
-                          {
-                            "text": "character"
-                          },
-                          {
-                            "text": "Class"
-                          }
-                        ]
-                      }
-                    }
-                  }
+                  "error_ty": null
                 }
               }
             },
@@ -169,19 +176,23 @@
                 "is_async": "No",
                 "inputs": [],
                 "output_ty": {
-                  "kind": "String",
-                  "rust_repr": {
-                    "kind": {
-                      "Ref": {
-                        "kind": {
-                          "Named": [
-                            "Str",
-                            []
-                          ]
+                  "main_ty": {
+                    "kind": "String",
+                    "rust_repr": {
+                      "kind": {
+                        "Ref": {
+                          "kind": {
+                            "Named": [
+                              "Str",
+                              [],
+                              {}
+                            ]
+                          }
                         }
                       }
                     }
-                  }
+                  },
+                  "error_ty": null
                 }
               }
             },
@@ -196,16 +207,19 @@
                 "is_async": "No",
                 "inputs": [],
                 "output_ty": {
-                  "kind": {
-                    "Tuple": {
-                      "elements": []
+                  "main_ty": {
+                    "kind": {
+                      "Tuple": {
+                        "elements": []
+                      }
+                    },
+                    "rust_repr": {
+                      "kind": {
+                        "Tuple": []
+                      }
                     }
                   },
-                  "rust_repr": {
-                    "kind": {
-                      "Tuple": []
-                    }
-                  }
+                  "error_ty": null
                 }
               }
             },
@@ -220,19 +234,23 @@
                 "is_async": "No",
                 "inputs": [],
                 "output_ty": {
-                  "kind": {
-                    "Scalar": "U32"
-                  },
-                  "rust_repr": {
+                  "main_ty": {
                     "kind": {
-                      "Named": [
-                        {
-                          "Scalar": "U32"
-                        },
-                        []
-                      ]
+                      "Scalar": "U32"
+                    },
+                    "rust_repr": {
+                      "kind": {
+                        "Named": [
+                          {
+                            "Scalar": "U32"
+                          },
+                          [],
+                          {}
+                        ]
+                      }
                     }
-                  }
+                  },
+                  "error_ty": null
                 }
               }
             }

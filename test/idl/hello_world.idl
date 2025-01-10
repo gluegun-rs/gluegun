@@ -23,15 +23,19 @@
             "is_async": "No",
             "inputs": [],
             "output_ty": {
-              "kind": "String",
-              "rust_repr": {
-                "kind": {
-                  "Named": [
-                    "String",
-                    []
-                  ]
+              "main_ty": {
+                "kind": "String",
+                "rust_repr": {
+                  "kind": {
+                    "Named": [
+                      "String",
+                      [],
+                      {}
+                    ]
+                  }
                 }
-              }
+              },
+              "error_ty": null
             }
           }
         }

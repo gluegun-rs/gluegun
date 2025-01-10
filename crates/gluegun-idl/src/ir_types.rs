@@ -1,8 +1,8 @@
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
-use crate::QualifiedName;
+use crate::{Name, QualifiedName};
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 pub struct Ty {
@@ -16,6 +16,10 @@ impl Ty {
             kind: Arc::new(kind),
             rust_repr: RustRepr::new(repr),
         }
+    }
+
+    pub(crate) fn anyhow_error() -> Self {
+        Ty::new(TypeKind::Error, RustReprKind::Named(RustName::AnyhowError, Default::default(), Default::default()))
     }
 
     /// Returns the unit type. Used for a dummy value in early phases.
@@ -78,6 +82,12 @@ pub enum TypeKind {
         elements: Vec<Ty>,
     },
     Scalar(Scalar),
+    Future {
+        output: Ty,
+    },
+
+    // Represents a generic exception/error type.
+    Error,
 
     /// Type defined by the user
     UserType {
@@ -126,7 +136,7 @@ pub enum RustReprKind {
     Scalar(Scalar),
     Ref(RustRepr),
     Slice(Ty),
-    Named(RustName, Vec<Ty>),
+    Named(RustName, Vec<Ty>, BTreeMap<Name, Ty>),
     /// A type defined in this library
     User(QualifiedName),
     Tuple(Vec<Ty>),
@@ -153,4 +163,8 @@ pub enum RustName {
     Path,
     Vec,
     Scalar(Scalar),
+    Result,
+    Option,
+    AnyhowError,
+    Future,
 }

@@ -3,13 +3,15 @@ use std::{collections::BTreeMap, sync::Arc};
 use syn::spanned::Spanned;
 
 use crate::{
-    Enum, Error, ErrorSpan, Field, Function, FunctionInput, IsAsync, Item, Method, MethodCategory,
-    Name, QualifiedName, Record, Resource, RustReprKind, SelfKind, Signature, Ty, TypeKind,
-    Variant, VariantArm,
+    Enum, Error, ErrorSpan, Field, Function, FunctionInput, FunctionOutput, IsAsync, Item, Method,
+    MethodCategory, Name, QualifiedName, Record, Resource, RustName, RustReprKind, SelfKind,
+    Signature, Ty, TypeKind, Variant, VariantArm,
 };
 
 use super::{
-    known_rust::{self, elaborate_rust_type, KNOWN_RUST_IMPL_TRAIT_TYPES, KNOWN_RUST_TYPES},
+    known_rust::{
+        self, elaborate_rust_type, RustPath, KNOWN_RUST_IMPL_TRAIT_TYPES, KNOWN_RUST_TYPES,
+    },
     util, Definition, DefinitionKind, SourcePath,
 };
 
@@ -281,14 +283,52 @@ impl<'arena> Elaborator<'arena> {
         }
     }
 
-    fn elaborate_return_ty(
+    /// Elaborate the Rust type into a [`FunctionOutput`][]; certain patterns (e.g., returning a result or `impl Future`)
+    /// are specially recognized.
+    fn elaborate_output_ty(
         &self,
+        is_async: &mut IsAsync,
         self_ty: Option<&Ty>,
-        output: &syn::ReturnType,
-    ) -> crate::Result<Ty> {
-        match output {
-            syn::ReturnType::Default => Ok(Ty::unit()),
-            syn::ReturnType::Type(_, ty) => self.elaborate_ty(self_ty, ty),
+        return_ty: &syn::ReturnType,
+    ) -> crate::Result<FunctionOutput> {
+        // First convert the type in Rust to a `Ty`
+        let elaborated_ty = match return_ty {
+            syn::ReturnType::Default => Ty::unit(),
+            syn::ReturnType::Type(_, ty) => self.elaborate_ty(self_ty, ty)?,
+        };
+
+        self.elaborated_ty_to_output(is_async, return_ty, &elaborated_ty)
+    }
+
+    fn elaborated_ty_to_output(
+        &self,
+        is_async: &mut IsAsync,
+        return_ty: &syn::ReturnType,
+        elaborated_ty: &Ty,
+    ) -> crate::Result<FunctionOutput> {
+        // Look for some special cases. For example, returning a `Result` is translated into a "fallible" function.
+        match elaborated_ty.rust_repr().kind() {
+            RustReprKind::Named(RustName::Result, args, _) => {
+                assert_eq!(args.len(), 2);
+                return Ok(FunctionOutput {
+                    main_ty: args[0].clone(),
+                    error_ty: Some(args[1].clone()),
+                });
+            }
+            RustReprKind::Named(RustName::Future, _, bindings) => {
+                if let Some(output) = bindings.get(&Name::output()) {
+                    self.elaborated_ty_to_output(is_async, return_ty, output)
+                } else {
+                    Err(Error::BindingNotFound(
+                        self.source().span(return_ty),
+                        Name::output(),
+                    ))
+                }
+            }
+            _ => Ok(FunctionOutput {
+                main_ty: elaborated_ty.clone(),
+                error_ty: None,
+            }),
         }
     }
 
@@ -307,28 +347,8 @@ impl<'arena> Elaborator<'arena> {
                 // Type names can either come from the user or be a reference to something in the Rust stdlib
                 // or well-known Rust crates.
 
-                if type_path.qself.is_none() && type_path.path.is_ident("Self") {
-                    if let Some(self_ty) = self_ty {
-                        Ok(self_ty.clone())
-                    } else {
-                        Err(self.error(Error::UnresolvedName, &type_path))
-                    }
-                } else {
-                    let (idents, tys) = self.elaborate_type_path(self_ty, type_path)?;
-
-                    if let Some(user_ty) = self.elaborate_user_type(ty, &idents, &tys)? {
-                        // Found a type defined in this module.
-                        Ok(user_ty)
-                    } else if let Some(rust_ty) =
-                        elaborate_rust_type(self.source(), ty, &idents, &tys, &KNOWN_RUST_TYPES)?
-                    {
-                        // Found a well-known Rust type.
-                        Ok(rust_ty)
-                    } else {
-                        // Unknown or unsupported type.
-                        Err(self.error(Error::UnresolvedName, &type_path))
-                    }
-                }
+                let rust_path = self.elaborate_type_path(self_ty, type_path)?;
+                self.elaborate_ty_from_path(self_ty, ty, rust_path)
             }
 
             syn::Type::Reference(ty) => {
@@ -381,6 +401,41 @@ impl<'arena> Elaborator<'arena> {
         }
     }
 
+    fn elaborate_ty_from_path(
+        &self,
+        self_ty: Option<&Ty>,
+        ty: &syn::Type,
+        rust_path: RustPath,
+    ) -> crate::Result<Ty> {
+        // Check for `Self`
+        if rust_path.idents.len() == 1 && rust_path.idents[0] == "Self" {
+            if let Some(self_ty) = self_ty {
+                Ok(self_ty.clone())
+            } else {
+                Err(self.error(Error::UnresolvedName, &ty))
+            }
+        } else if let Some(user_ty) =
+            self.elaborate_user_type(ty, &rust_path.idents, &rust_path.tys)?
+        {
+            // Found a type defined by the user in the input somewhere.
+
+            // Currently we don't have any kind of user types etc that support bindings.
+            if !rust_path.bindings.is_empty() {
+                return Err(self.error(Error::BindingNotExpected, ty));
+            }
+
+            Ok(user_ty)
+        } else if let Some(rust_ty) =
+            elaborate_rust_type(self.source(), ty, rust_path, &KNOWN_RUST_TYPES)?
+        {
+            // Found a well-known Rust type.
+            Ok(rust_ty)
+        } else {
+            // Unknown or unsupported type.
+            Err(self.error(Error::UnresolvedName, &ty))
+        }
+    }
+
     /// Match the impl trait type `ty`, deconstructed into `impl_trait_ty`.
     fn elaborate_impl_trait_ty(
         &self,
@@ -391,12 +446,11 @@ impl<'arena> Elaborator<'arena> {
         for bound in impl_trait_ty.bounds.iter() {
             match bound {
                 syn::TypeParamBound::Trait(bound) => {
-                    let (idents, tys) = self.elaborate_path(self_ty, &bound.path)?;
+                    let rust_path = self.elaborate_path(self_ty, &bound.path)?;
                     if let Some(ty) = known_rust::elaborate_rust_type(
                         self.source(),
                         ty,
-                        &idents,
-                        &tys,
+                        rust_path,
                         KNOWN_RUST_IMPL_TRAIT_TYPES,
                     )? {
                         return Ok(ty);
@@ -504,7 +558,7 @@ impl<'arena> Elaborator<'arena> {
         &self,
         self_ty: Option<&Ty>,
         type_path: &syn::TypePath,
-    ) -> crate::Result<(Vec<syn::Ident>, Vec<Ty>)> {
+    ) -> crate::Result<RustPath> {
         let syn::TypePath { qself, path } = type_path;
 
         if let Some(qself) = qself {
@@ -515,27 +569,31 @@ impl<'arena> Elaborator<'arena> {
     }
 
     /// Resolves a path like `bar::Foo<T, U>` etc to a series of identifies (e.g., `[bar, Foo]`) and type arguments (e.g., `[T]`).
-    fn elaborate_path(
-        &self,
-        self_ty: Option<&Ty>,
-        path: &syn::Path,
-    ) -> crate::Result<(Vec<syn::Ident>, Vec<Ty>)> {
+    fn elaborate_path(&self, self_ty: Option<&Ty>, path: &syn::Path) -> crate::Result<RustPath> {
         let mut segments = path.segments.iter();
         let mut idents = vec![];
         let mut tys = vec![];
+        let mut bindings = BTreeMap::new();
 
         while let Some(segment) = segments.next() {
             idents.push(segment.ident.clone());
             match &segment.arguments {
                 syn::PathArguments::None => continue,
                 syn::PathArguments::AngleBracketed(args) => {
-                    tys.extend(
-                        args.args
-                            .iter()
-                            .map(|arg| self.elaborate_generic_argument_as_ty(self_ty, arg))
-                            .collect::<crate::Result<Vec<_>>>()?,
-                    );
-                    break;
+                    for arg in &args.args {
+                        match arg {
+                            syn::GenericArgument::Type(ty) => {
+                                tys.push(self.elaborate_ty(self_ty, ty)?);
+                            }
+                            syn::GenericArgument::AssocType(assoc_ty) => {
+                                let ty = self.elaborate_ty(self_ty, &assoc_ty.ty)?;
+                                bindings.insert(Name::from_ident(&assoc_ty.ident), ty);
+                            }
+                            _ => {
+                                return Err(self.error(Error::UnsupportedType, &arg));
+                            }
+                        }
+                    }
                 }
                 syn::PathArguments::Parenthesized(args) => {
                     return Err(self.error(Error::UnsupportedType, &args));
@@ -547,18 +605,11 @@ impl<'arena> Elaborator<'arena> {
             return Err(self.error(Error::UnsupportedType, &extra_segment));
         }
 
-        Ok((idents, tys))
-    }
-
-    fn elaborate_generic_argument_as_ty(
-        &self,
-        self_ty: Option<&Ty>,
-        arg: &syn::GenericArgument,
-    ) -> crate::Result<Ty> {
-        match arg {
-            syn::GenericArgument::Type(ty) => self.elaborate_ty(self_ty, ty),
-            _ => Err(self.error(Error::UnsupportedType, &arg)),
-        }
+        Ok(RustPath {
+            idents,
+            tys,
+            bindings,
+        })
     }
 
     // Given a struct name like `Foo`,
@@ -613,12 +664,6 @@ impl<'arena> Elaborator<'arena> {
 
         let name = util::recognize_name(&sig.ident);
 
-        let is_async = if sig.asyncness.is_some() {
-            IsAsync::Yes
-        } else {
-            IsAsync::No
-        };
-
         // Check for `&self` and friends
         let self_kind = if let Some(syn::FnArg::Receiver(receiver)) = sig.inputs.first() {
             if let Some(colon) = receiver.colon_token {
@@ -655,10 +700,16 @@ impl<'arena> Elaborator<'arena> {
             }
         }
 
-        let output_ty = self.elaborate_return_ty(self_ty, &sig.output)?;
+        let mut is_async = if sig.asyncness.is_some() {
+            IsAsync::Yes
+        } else {
+            IsAsync::No
+        };
+
+        let output_ty = self.elaborate_output_ty(&mut is_async, self_ty, &sig.output)?;
 
         let output_is_self = if let Some(self_ty) = self_ty {
-            output_ty == *self_ty
+            output_ty.main_ty == *self_ty
         } else {
             false
         };

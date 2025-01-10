@@ -2,7 +2,7 @@ use std::{ffi::OsString, path::PathBuf};
 
 use thiserror::Error;
 
-use crate::ErrorSpan;
+use crate::{ErrorSpan, Name};
 
 #[derive(Debug, Error)]
 #[non_exhaustive]
@@ -15,6 +15,12 @@ pub enum Error {
 
     #[error("{0}: generics not permitted")]
     GenericsNotPermitted(ErrorSpan),
+
+    #[error("{0}: expected associated type binding `{1}=T` not found")]
+    BindingNotFound(ErrorSpan, Name),
+
+    #[error("{0}: unexpected associated type binding")]
+    BindingNotExpected(ErrorSpan),
 
     #[error("{0}: fields must either be all public or all crate-private")]
     MixedPublicPrivateFields(ErrorSpan),
@@ -54,6 +60,9 @@ pub enum Error {
 
     #[error("path component could not be converted to a string")]
     NotUtf8(OsString),
+
+    #[error("async functions cannot return `impl Future`")]
+    DoubleAsync(ErrorSpan),
 }
 
 impl From<syn::Error> for Error {

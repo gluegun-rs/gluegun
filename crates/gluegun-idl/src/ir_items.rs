@@ -73,6 +73,16 @@ impl Name {
             text: ident.to_string(),
         }
     }
+
+    pub fn output() -> Self {
+        Self::from("Output")
+    }
+}
+
+impl std::fmt::Display for Name {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.text)
+    }
 }
 
 impl From<&str> for Name {
@@ -227,7 +237,7 @@ pub struct Field {
 pub struct Signature {
     pub(crate) is_async: IsAsync,
     pub(crate) inputs: Vec<FunctionInput>,
-    pub(crate) output_ty: Ty,
+    pub(crate) output_ty: FunctionOutput,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
@@ -241,4 +251,11 @@ pub enum IsAsync {
 pub struct FunctionInput {
     pub(crate) name: Name,
     pub(crate) ty: Ty,
+}
+
+#[derive(Accessors, Clone, Debug, Serialize, Deserialize)]
+#[accessors(get)]
+pub struct FunctionOutput {
+    pub(crate) main_ty: Ty,
+    pub(crate) error_ty: Option<Ty>,
 }

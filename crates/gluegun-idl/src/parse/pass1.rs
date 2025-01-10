@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use syn::{spanned::Spanned, token::Impl};
+use syn::spanned::Spanned;
 
 use crate::{Error, ErrorSpan, QualifiedName, SourcePath};
 
