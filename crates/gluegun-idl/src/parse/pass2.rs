@@ -3,9 +3,9 @@ use std::{collections::BTreeMap, sync::Arc};
 use syn::spanned::Spanned;
 
 use crate::{
-    Enum, Error, ErrorSpan, Field, Function, FunctionInput, FunctionOutput, IsAsync, Item, Method,
+    Enum, Error, Field, Function, FunctionInput, FunctionOutput, IsAsync, Item, Method,
     MethodCategory, Name, QualifiedName, Record, Resource, RustName, RustReprKind, SelfKind,
-    Signature, Ty, TypeKind, Variant, VariantArm,
+    Signature, Span, Ty, TypeKind, Variant, VariantArm,
 };
 
 use super::{
@@ -38,7 +38,7 @@ impl<'arena> Elaborator<'arena> {
         self.source.as_ref().unwrap()
     }
 
-    fn error(&self, variant: fn(ErrorSpan) -> Error, spanned: impl Spanned) -> Error {
+    fn error(&self, variant: fn(Span) -> Error, spanned: impl Spanned) -> Error {
         variant(self.source().span(spanned))
     }
 
@@ -101,6 +101,7 @@ impl<'arena> Elaborator<'arena> {
         let methods = self.elaborate_methods(definition.module, &self_ty, &item.ident)?;
 
         Ok(Record {
+            span: self.source().span(&item.ident),
             name: qname.tail_name(),
             fields: self.elaborate_record_fields(&self_ty, item)?,
             methods,
@@ -115,14 +116,29 @@ impl<'arena> Elaborator<'arena> {
     ) -> crate::Result<Vec<Field>> {
         item.fields
             .iter()
-            .map(|field| match &field.ident {
-                Some(name) => Ok(Field {
-                    name: util::recognize_name(name),
-                    ty: self.elaborate_ty(Some(self_ty), &field.ty)?,
-                }),
-                None => Err(self.error(Error::AnonymousField, &field)),
-            })
+            .zip(0..)
+            .map(|(field, index)| self.elaborate_record_field(self_ty, index, field))
             .collect()
+    }
+
+    fn elaborate_record_field(
+        &mut self,
+        self_ty: &Ty,
+        index: usize,
+        field: &syn::Field,
+    ) -> crate::Result<Field> {
+        match &field.ident {
+            Some(name) => Ok(Field {
+                span: self.source().span(name),
+                name: util::recognize_name(name),
+                ty: self.elaborate_ty(Some(self_ty), &field.ty)?,
+            }),
+            None => Ok(Field {
+                span: self.source().span(field),
+                name: Name::from(format!("f{index}")),
+                ty: self.elaborate_ty(Some(self_ty), &field.ty)?,
+            }),
+        }
     }
 
     /// A "resource" has private fields -- co-data.
@@ -136,6 +152,7 @@ impl<'arena> Elaborator<'arena> {
         let methods = self.elaborate_methods(definition.module, &self_ty, &item.ident)?;
 
         Ok(Resource {
+            span: self.source().span(&item.ident),
             name: qname.tail_name(),
             methods,
         })
@@ -155,6 +172,7 @@ impl<'arena> Elaborator<'arena> {
             .collect::<crate::Result<Vec<_>>>()?;
         let methods = self.elaborate_methods(definition.module, &self_ty, &item.ident)?;
         Ok(Variant {
+            span: self.source().span(&item.ident),
             name: util::recognize_name(&item.ident),
             arms,
             methods,
@@ -168,18 +186,28 @@ impl<'arena> Elaborator<'arena> {
     ) -> crate::Result<VariantArm> {
         let name = util::recognize_name(&variant.ident);
         match &variant.fields {
-            syn::Fields::Named(fields_named) => {
-                Err(self.error(Error::AnonymousFieldRequired, &fields_named))
-            }
-            syn::Fields::Unnamed(fields_unnamed) => Ok(VariantArm {
+            syn::Fields::Named(fields) => Ok(VariantArm {
+                span: self.source().span(&variant.ident),
                 name,
-                fields: fields_unnamed
+                fields: fields
+                    .named
+                    .iter()
+                    .zip(0..)
+                    .map(|(field, index)| self.elaborate_record_field(self_ty, index, field))
+                    .collect::<crate::Result<Vec<_>>>()?,
+            }),
+            syn::Fields::Unnamed(fields) => Ok(VariantArm {
+                span: self.source().span(&variant.ident),
+                name,
+                fields: fields
                     .unnamed
                     .iter()
-                    .map(|field| self.elaborate_ty(Some(self_ty), &field.ty))
+                    .zip(0..)
+                    .map(|(field, index)| self.elaborate_record_field(self_ty, index, field))
                     .collect::<crate::Result<Vec<_>>>()?,
             }),
             syn::Fields::Unit => Ok(VariantArm {
+                span: self.source().span(&variant.ident),
                 name,
                 fields: Default::default(),
             }),
@@ -198,6 +226,7 @@ impl<'arena> Elaborator<'arena> {
             .map(|variant| {
                 assert!(matches!(variant.fields, syn::Fields::Unit));
                 crate::EnumArm {
+                    span: self.source().span(&variant.ident),
                     name: util::recognize_name(&variant.ident),
                 }
             })
@@ -205,6 +234,7 @@ impl<'arena> Elaborator<'arena> {
         let self_ty = Ty::user(qname);
         let methods = self.elaborate_methods(definition.module, &self_ty, &item.ident)?;
         Ok(Enum {
+            span: self.source().span(&item.ident),
             name: util::recognize_name(&item.ident),
             arms,
             methods,
@@ -646,11 +676,16 @@ impl<'arena> Elaborator<'arena> {
         item_fn: &&syn::ItemFn,
     ) -> crate::Result<Function> {
         let Method {
+            span,
             category: _,
             name,
             signature,
         } = self.elaborate_fn_sig(None, &item_fn.sig)?;
-        Ok(Function { name, signature })
+        Ok(Function {
+            span,
+            name,
+            signature,
+        })
     }
 
     fn elaborate_fn_sig(
@@ -693,6 +728,7 @@ impl<'arena> Elaborator<'arena> {
                 syn::FnArg::Typed(input) => {
                     let input_ty = self.elaborate_ty(self_ty, &input.ty)?;
                     inputs.push(FunctionInput {
+                        span: self.source().span(&input.pat),
                         name: self.function_input_name(input)?,
                         ty: input_ty,
                     })
@@ -724,6 +760,7 @@ impl<'arena> Elaborator<'arena> {
         };
 
         Ok(Method {
+            span: self.source().span(&sig.ident),
             category,
             name,
             signature: Signature {

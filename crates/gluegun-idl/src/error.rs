@@ -2,7 +2,7 @@ use std::{ffi::OsString, path::PathBuf};
 
 use thiserror::Error;
 
-use crate::{ErrorSpan, Name};
+use crate::{Span, Name};
 
 #[derive(Debug, Error)]
 #[non_exhaustive]
@@ -14,46 +14,43 @@ pub enum Error {
     Parse(String),
 
     #[error("{0}: generics not permitted")]
-    GenericsNotPermitted(ErrorSpan),
+    GenericsNotPermitted(Span),
 
     #[error("{0}: expected associated type binding `{1}=T` not found")]
-    BindingNotFound(ErrorSpan, Name),
+    BindingNotFound(Span, Name),
 
     #[error("{0}: unexpected associated type binding")]
-    BindingNotExpected(ErrorSpan),
+    BindingNotExpected(Span),
 
     #[error("{0}: fields must either be all public or all crate-private")]
-    MixedPublicPrivateFields(ErrorSpan),
+    MixedPublicPrivateFields(Span),
 
     #[error("{0}: unrecognized Rust item")]
-    UnrecognizedItem(ErrorSpan),
+    UnrecognizedItem(Span),
 
     #[error("{0}: unsupported Rust item; consider using `#[gluegun::ignore]`")]
-    UnsupportedItem(ErrorSpan),
+    UnsupportedItem(Span),
 
     #[error("{0}: only `self`, `&self`, and `&mut self` are supported")]
-    ExplicitSelfNotSupported(ErrorSpan),
+    ExplicitSelfNotSupported(Span),
 
     #[error("{0}: macro invocations not supported")]
-    MacroNotSupported(ErrorSpan),
+    MacroNotSupported(Span),
 
     #[error("{0}: unsupported Rust type")]
-    UnsupportedType(ErrorSpan),
+    UnsupportedType(Span),
 
     #[error("{0}: cannot resolve name (it must be public)")]
-    UnresolvedName(ErrorSpan),
+    UnresolvedName(Span),
 
     #[error("{0}: expected a Rust type, not this")]
-    NotType(ErrorSpan),
+    NotType(Span),
 
     #[error("{0}: anonymous fields unsupported")]
-    AnonymousField(ErrorSpan),
-
-    #[error("{0}: variants must have anonymous fields")]
-    AnonymousFieldRequired(ErrorSpan),
+    AnonymousField(Span),
 
     #[error("{0}: unsupported function input pattern, must be a single identifier")]
-    UnsupportedInputPattern(ErrorSpan),
+    UnsupportedInputPattern(Span),
 
     #[error("{0}: expected to be invoked with a path like `foo/src/../*.rs`, found")]
     InvalidPath(PathBuf),
@@ -62,7 +59,7 @@ pub enum Error {
     NotUtf8(OsString),
 
     #[error("async functions cannot return `impl Future`")]
-    DoubleAsync(ErrorSpan),
+    DoubleAsync(Span),
 }
 
 impl From<syn::Error> for Error {

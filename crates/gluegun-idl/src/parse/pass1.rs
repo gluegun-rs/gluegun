@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use syn::spanned::Spanned;
 
-use crate::{Error, ErrorSpan, QualifiedName, SourcePath};
+use crate::{Error, Span, QualifiedName, SourcePath};
 
 use super::{util, Definition, DefinitionKind};
 
@@ -35,7 +35,7 @@ impl<'ast> Recognizer<'ast> {
         }
     }
 
-    fn error(&self, variant: fn(ErrorSpan) -> Error, spanned: impl Spanned) -> Error {
+    fn error(&self, variant: fn(Span) -> Error, spanned: impl Spanned) -> Error {
         variant(self.source.span(spanned))
     }
 

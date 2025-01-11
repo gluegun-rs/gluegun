@@ -1,17 +1,18 @@
 use std::{path::PathBuf, sync::Arc};
 
 use accessors_rs::Accessors;
+use serde::{Deserialize, Serialize};
 use syn::spanned::Spanned;
 
-#[derive(Accessors, Debug)]
+#[derive(Accessors, Clone, Debug, Serialize, Deserialize)]
 #[accessors(get)]
-pub struct ErrorSpan {
+pub struct Span {
     pub(crate) path: PathBuf,
     pub(crate) start: ErrorLocation,
     pub(crate) end: ErrorLocation,
 }
 
-impl std::fmt::Display for ErrorSpan {
+impl std::fmt::Display for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -25,7 +26,7 @@ impl std::fmt::Display for ErrorSpan {
     }
 }
 
-#[derive(Accessors, Debug)]
+#[derive(Accessors, Clone, Debug, Serialize, Deserialize)]
 #[accessors(get)]
 pub struct ErrorLocation {
     /// Byte index since start of file
@@ -53,12 +54,12 @@ impl SourcePath {
 
     /// Create an error span from a [`Span`][].
     /// There is no stable API to access path info, so pass that separately.
-    pub(crate) fn span(&self, span: impl Spanned) -> ErrorSpan {
+    pub(crate) fn span(&self, span: impl Spanned) -> Span {
         let span = span.span();
         let byte_range = span.byte_range();
         let start = span.start();
-        let end = span.start();
-        ErrorSpan {
+        let end = span.end();
+        Span {
             path: self.path.to_path_buf(),
             start: ErrorLocation {
                 byte: byte_range.start,

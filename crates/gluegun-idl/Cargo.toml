@@ -5,6 +5,8 @@ edition = "2021"
 
 [dependencies]
 accessors-rs = "0.1.0"
+convert_case = "0.6.0"
+itertools = "0.14.0"
 proc-macro2 = { version = "1.0.92", features = ["span-locations"] }
 serde = { version = "1.0.217", features = ["alloc", "derive", "rc"] }
 serde_with = "3.12.0"

@@ -56,6 +56,36 @@ impl Ty {
     }
 }
 
+impl std::fmt::Display for Ty {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &*self.kind {
+            TypeKind::Map { key, value } => write!(f, "Map<{}, {}>", key, value),
+            TypeKind::Vec { element } => write!(f, "Vec<{}>", element),
+            TypeKind::Set { element } => write!(f, "Set<{}>", element),
+            TypeKind::Path => write!(f, "Path"),
+            TypeKind::String => write!(f, "String"),
+            TypeKind::Option { element } => write!(f, "Option<{}>", element),
+            TypeKind::Result { ok, err } => write!(f, "Result<{}, {}>", ok, err),
+            TypeKind::Tuple { elements } => {
+                let mut s = String::new();
+                s.push('(');
+                for (i, e) in elements.iter().enumerate() {
+                    if i > 0 {
+                        s.push_str(", ");
+                    }
+                    s.push_str(&e.to_string());
+                }
+                s.push(')');
+                write!(f, "{}", s)
+            }
+            TypeKind::Scalar(s) => write!(f, "{}", s),
+            TypeKind::Future { output } => write!(f, "impl Future<Output = {}>", output),
+            TypeKind::Error => write!(f, "Error"),
+            TypeKind::UserType { qname } => write!(f, "{}", qname.to_string("::")),
+        }
+    }
+}
+
 #[non_exhaustive]
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 pub enum TypeKind {
@@ -99,6 +129,7 @@ pub enum TypeKind {
 #[non_exhaustive]
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 pub enum Scalar {
+    Boolean,
     Char,
     I8,
     I16,
@@ -111,6 +142,26 @@ pub enum Scalar {
     F32,
     F64,
 }
+
+impl std::fmt::Display for Scalar {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Scalar::Boolean => write!(f, "bool"),
+            Scalar::Char => write!(f, "char"),
+            Scalar::I8 => write!(f, "i8"),
+            Scalar::I16 => write!(f, "i16"),
+            Scalar::I32 => write!(f, "i32"),
+            Scalar::I64 => write!(f, "i64"),
+            Scalar::U8 => write!(f, "u8"),
+            Scalar::U16 => write!(f, "u16"),
+            Scalar::U32 => write!(f, "u32"),
+            Scalar::U64 => write!(f, "u64"),
+            Scalar::F32 => write!(f, "f32"),
+            Scalar::F64 => write!(f, "f64"),
+        }
+    }
+}
+
 
 /// Recognized scalar types
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
