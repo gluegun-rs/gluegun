@@ -19,7 +19,14 @@ impl Ty {
     }
 
     pub(crate) fn anyhow_error() -> Self {
-        Ty::new(TypeKind::Error, RustReprKind::Named(RustName::AnyhowError, Default::default(), Default::default()))
+        Ty::new(
+            TypeKind::Error,
+            RustReprKind::Named(
+                RustName::AnyhowError,
+                Default::default(),
+                Default::default(),
+            ),
+        )
     }
 
     /// Returns the unit type. Used for a dummy value in early phases.
@@ -125,7 +132,9 @@ pub enum TypeKind {
     },
 }
 
-/// Recognized scalar types
+/// Recognized scalar types.
+///
+/// The `Display` impl gives their Rust names.
 #[non_exhaustive]
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 pub enum Scalar {
@@ -161,7 +170,6 @@ impl std::fmt::Display for Scalar {
         }
     }
 }
-
 
 /// Recognized scalar types
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]

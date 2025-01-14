@@ -8,6 +8,8 @@ use gluegun_core::{
     },
 };
 
+use crate::util;
+
 pub(crate) struct JavaCodeGenerator<'idl> {
     idl: &'idl Idl,
 }
@@ -31,18 +33,25 @@ impl<'idl> JavaCodeGenerator<'idl> {
         Ok(())
     }
 
-    fn class_file_name(qname: &QualifiedName) -> PathBuf {
-        let mut path = PathBuf::new();
-        for name in qname.camel_case().names() {
-            path.push(name.text());
-        }
-        path.set_extension("java");
-        path
-    }
+    fn generate_java_file(
+        &mut self,
+        dir: &mut DirBuilder<'_>,
+        java_type: &str,
+        qname: &QualifiedName,
+        body: impl FnOnce(&mut Self, &mut CodeWriter<'_>) -> anyhow::Result<()>,
+    ) -> anyhow::Result<()> {
+        let mut file = dir.add_file(util::class_file_name(qname))?;
+        let (package, name) = qname.split_module_name();
+        let package = package.camel_case().dotted();
+        write!(file, "package {package}")?;
+        write!(file, "")?;
+        write!(file, "public {java_type} {name} {{",)?;
 
-    fn class_dot_name(qname: &QualifiedName) -> String {
-        let (module_name, type_name) = qname.split_module_name();
-        format!("{}.{}", module_name.dotted(), type_name)
+        body(self, &mut file)?;
+
+        write!(file, "}}")?;
+
+        Ok(())
     }
 
     fn generate_item(
@@ -150,27 +159,6 @@ impl<'idl> JavaCodeGenerator<'idl> {
         })
     }
 
-    fn generate_java_file(
-        &mut self,
-        dir: &mut DirBuilder<'_>,
-        java_type: &str,
-        qname: &QualifiedName,
-        body: impl FnOnce(&mut Self, &mut CodeWriter<'_>) -> anyhow::Result<()>,
-    ) -> anyhow::Result<()> {
-        let mut file = dir.add_file(Self::class_file_name(qname))?;
-        let (package, name) = qname.split_module_name();
-        let package = package.camel_case().dotted();
-        write!(file, "package {package}")?;
-        write!(file, "")?;
-        write!(file, "public {java_type} {name} {{",)?;
-
-        body(self, &mut file)?;
-
-        write!(file, "}}")?;
-
-        Ok(())
-    }
-
     fn generate_fields(&self, file: &mut CodeWriter<'_>, fields: &[Field]) -> anyhow::Result<()> {
         for field in fields {
             write!(
@@ -198,7 +186,7 @@ impl<'idl> JavaCodeGenerator<'idl> {
         write!(file, "")?;
 
         match method.category() {
-            MethodCategory::Constructor => Ok(()),
+            MethodCategory::Constructor => todo!(),
 
             MethodCategory::InstanceMethod(self_kind)
             | MethodCategory::BuilderMethod(self_kind) => self.generate_regular_method(
@@ -223,28 +211,27 @@ impl<'idl> JavaCodeGenerator<'idl> {
         name: &Name,
         signature: &Signature,
     ) -> anyhow::Result<()> {
+        let native_name = self.generate_native_counterpart(file, self_kind, name, signature)?;
+
         write!(file, "")?;
 
-        let static_kw = if self_kind.is_none() { "static " } else { "" };
+        let static_kw = if self_kind.is_none() { "static" } else { "" };
 
         let return_ty = signature.output_ty().main_ty();
         write!(
             file,
-            "public {static_kw}{ret} {name}(",
+            "public {static_kw} {ret} {name}(",
             ret = self.write_ty(return_ty)?,
             name = name
         )?;
-        write!(file, ") {{")?;
         self.generate_function_inputs(file, signature.inputs())?;
+        write!(file, ") {{")?;
+        write!(file, "return {native_name}(")?;
+        for input in signature.inputs() {
+            write!(file, "{input_name},", input_name = input.name())?;
+        }
+        write!(file, ");");
         write!(file, "}}")?;
-
-        write!(
-            file,
-            "{ret} native_{name}(",
-            ret = self.write_ty(return_ty)?,
-            name = name
-        )?;
-        write!(file, ");")?;
 
         Ok(())
     }
@@ -263,6 +250,31 @@ impl<'idl> JavaCodeGenerator<'idl> {
             )?;
         }
         Ok(())
+    }
+
+    fn generate_native_counterpart(
+        &self,
+        file: &mut CodeWriter<'_>,
+        self_kind: Option<&SelfKind>,
+        name: &Name,
+        signature: &Signature,
+    ) -> anyhow::Result<String> {
+        let native_name = format!("native${name}");
+
+        write!(file, "")?;
+
+        let static_kw = if self_kind.is_none() { "static" } else { "" };
+
+        let return_ty = signature.output_ty().main_ty();
+        write!(
+            file,
+            "public {static_kw} native {ret} {native_name}(",
+            ret = self.write_ty(return_ty)?,
+        )?;
+        self.generate_function_inputs(file, signature.inputs())?;
+        write!(file, ");")?;
+
+        Ok(native_name)
     }
 
     fn write_ty(&self, ty: &Ty) -> anyhow::Result<String> {
@@ -326,7 +338,7 @@ impl<'idl> JavaCodeGenerator<'idl> {
                 V = self.write_objectified_ty(output)?
             )),
             TypeKind::Error => todo!(),
-            TypeKind::UserType { qname } => Ok(Self::class_dot_name(qname)),
+            TypeKind::UserType { qname } => Ok(util::class_dot_name(qname)),
             _ => anyhow::bail!("unsupported type: `{ty}`"),
         }
     }

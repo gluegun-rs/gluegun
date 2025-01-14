@@ -6,6 +6,7 @@ use gluegun_core::{
 
 mod java_gen;
 mod rs_gen;
+mod util;
 
 /// A simple Cli you can use for your own parser.
 #[derive(clap::Parser)]
