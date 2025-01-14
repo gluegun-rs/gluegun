@@ -35,9 +35,16 @@ impl From<&Name> for QualifiedName {
 }
 
 impl QualifiedName {
-    /// Return a version of the qualified name joined by `.`
+    /// Return a version of the qualified name separated by `.`
+    /// (e.g., `std.vec.Vec`)
     pub fn dotted(&self) -> String {
         self.to_string(".")
+    }
+
+    /// Returns a version of the qname with each component separated by `::`
+    /// (e.g., `std::vec::Vec`)
+    pub fn colon_colon(&self) -> String {
+        self.to_string("::")
     }
 
     /// Return a string version joined by the given `sep`.
@@ -161,9 +168,13 @@ impl std::fmt::Display for Name {
 
 impl From<&str> for Name {
     fn from(s: &str) -> Self {
-        Name {
-            text: s.to_string(),
-        }
+        Name::from(s.to_string())
+    }
+}
+
+impl From<&String> for Name {
+    fn from(s: &String) -> Self {
+        Name::from(&s[..])
     }
 }
 

@@ -34,15 +34,15 @@ impl<'idl> RustCodeGenerator<'idl> {
         item: &Item,
     ) -> anyhow::Result<()> {
         match item {
-            Item::Resource(resource) => self.generate_resource(dir, qname, resource),
-            Item::Record(record) => self.generate_record(dir, qname, record),
-            Item::Variant(variant) => self.generate_variant(dir, qname, variant),
-            Item::Enum(an_enum) => self.generate_enum(dir, qname, an_enum),
+            Item::Resource(resource) => self.generate_resource(lib_rs, qname, resource),
+            Item::Record(record) => self.generate_record(lib_rs, qname, record),
+            Item::Variant(variant) => self.generate_variant(lib_rs, qname, variant),
+            Item::Enum(an_enum) => self.generate_enum(lib_rs, qname, an_enum),
             Item::Function(_) => {
                 // Skip functions for now. We will collect them and generate them as static methods.
                 Ok(())
             }
-            _ => anyhow::bail!("unsupported item: "),
+            _ => anyhow::bail!("unsupported item: {item:?}"),
         }
     }
 
@@ -53,7 +53,7 @@ impl<'idl> RustCodeGenerator<'idl> {
         resource: &Resource,
     ) -> Result<(), anyhow::Error> {
         for method in resource.methods() {
-            self.generate_method(dir, qname, method)?;
+            self.generate_method(lib_rs, qname, method)?;
         }
         Ok(())
     }
@@ -93,36 +93,56 @@ impl<'idl> RustCodeGenerator<'idl> {
     ) -> anyhow::Result<()> {
     }
 
+    /// Generate a native function definition that will be the backing function for a Java method.
+    ///
+    /// # Parameters
+    ///
+    /// * `lib_rs`, write-stream for the `lib.rs` file
+    /// * `rust_qname`, qname of the `Resource` type or, for free functions, the containing module
+    /// * `java_qname`, the qname of the Java class containing the method; often the same as `rust_qname` but (e.g. for free functions) not always
+    /// * `fn_name`, the name of the method/function
+    /// * `method_category`, the category of method (e.g., static etc). Static for free functions.
+    /// * `signature`, types of inputs/outputs apart from `self`
     fn generate_native_function(
         &self,
         lib_rs: &mut CodeWriter<'_>,
-        class_qname: &QualifiedName,
-        method_name: &Name,
+        rust_qname: &QualifiedName,
+        java_qname: &QualifiedName,
+        fn_name: &Name,
         method_category: &MethodCategory,
         signature: &Signature,
     ) -> anyhow::Result<()> {
         write!(lib_rs, "const _: () = {{")?;
         write!(
             lib_rs,
-            "#[duchess::java_function({class_dot_name}::{method_name})]",
-            class_dot_name = util::class_dot_name(class_qname)
+            "#[duchess::java_function({class_dot_name}::{fn_name})]",
+            class_dot_name = util::class_dot_name(java_qname)
         )?;
-        write!(lib_rs, "fn {method_name}(")?;
+        write!(lib_rs, "fn {fn_name}(")?;
 
         match method_category {
-            MethodCategory::Constructor => todo!(),
-            MethodCategory::BuilderMethod(self_kind) => todo!(),
-            MethodCategory::InstanceMethod(self_kind) => todo!(),
-            MethodCategory::StaticMethod => todo!(),
+            MethodCategory::Constructor => {}
+            MethodCategory::BuilderMethod(_self_kind)
+            | MethodCategory::InstanceMethod(_self_kind) => {
+                write!(lib_rs, "_self: &duchess::JavaObject")?; // FIXME
+            }
+            MethodCategory::StaticMethod => {}
             _ => anyhow::bail!("unsupported method category: {method_category:?}"),
         }
 
         for input in signature.inputs() {
             let name = input.name();
             let ty = input.ty();
+            write!(lib_rs, "{name}: {ty},", ty = self.rust_parameter_ty(ty))?;
         }
 
         write!(lib_rs, ") -> duchess::Result<> {{")?;
+
+        // Fn body is just a call to the underlying Rust function
+        write!(lib_rs, "{m}::{fn_name}(", m = rust_qname.colon_colon())?;
+        write!(lib_rs, "{m}::{fn_name}(", m = rust_qname.colon_colon())?;
+        write!(lib_rs, ")")?;
+
         write!(lib_rs, "}}")?;
         write!(lib_rs, "}}")?;
         Ok(())

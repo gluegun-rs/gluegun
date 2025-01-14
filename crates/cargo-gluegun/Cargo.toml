@@ -4,3 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1.0.95"
+cargo_metadata = "0.19.1"
+clap = { version = "4.5.26", features = ["derive"] }
+clap-cargo = { version = "0.15.2", features = ["cargo_metadata"] }
+gluegun-core = { version = "0.1.0", path = "../gluegun-core" }
+gluegun-idl = { version = "0.1.0", path = "../gluegun-idl" }
+serde_json = "1.0.135"
