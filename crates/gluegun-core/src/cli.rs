@@ -2,10 +2,10 @@
 //! some other language. Most GlueGun CLI crates can use the Clap structs defined
 //! in this file.
 
-use std::{path::PathBuf, str::FromStr};
+use std::path::PathBuf;
 
 use accessors_rs::Accessors;
-use clap::Parser;
+use serde::Deserialize;
 
 use crate::{codegen::LibraryCrate, idl::Idl};
 
@@ -22,16 +22,33 @@ pub trait GlueGunHelper {
 
 /// The "main" function for a gluegun helper. Defines standard argument parsing.
 pub fn run(helper: impl GlueGunHelper) -> anyhow::Result<()> {
-    let args = Cli::try_parse()?;
-    match args.command {
-        GlueGunCommand::Generate { idl, dest_crate } => {
-            let mut cx = GenerateCx {
-                idl: idl.into(),
-                dest_crate,
-            };
-            helper.generate(&mut cx)
-        }
+    // cargo-gluegun will invoke us with `gg` as argument and a JSON doc on stdin.
+    let mut args = std::env::args();
+    let Some(arg0) = args.next() else {
+        anyhow::bail!("expected to be invoked by `cargo gluegun`");
+    };
+    if arg0 != "gg" {
+        anyhow::bail!("expected to be invoked by `cargo gluegun`");
     }
+
+    // Parse the input from stdin
+    let stdin = std::io::stdin();
+    let input: GlueGunInput = serde_json::from_reader(stdin.lock())?;
+
+    // Invoke the user's code
+    let mut cx = GenerateCx {
+        idl: input.idl,
+        dest_crate: input.dest_crate,
+    };
+    helper.generate(&mut cx)
+}
+
+/// These are the subcommands executed by our system.
+/// Your extension should be able to respond to them.
+#[derive(Deserialize)]
+struct GlueGunInput {
+    idl: Idl,
+    dest_crate: GlueGunDestinationCrate,
 }
 
 /// Context provided to the [`GlueGunHelper::generate`][] implementation.
@@ -52,25 +69,6 @@ impl GenerateCx {
     }
 }
 
-/// A simple Cli you can use for your own parser.
-#[derive(clap::Parser)]
-struct Cli {
-    #[command(subcommand)]
-    command: GlueGunCommand,
-}
-
-/// These are the subcommands executed by our system.
-/// Your extension should be able to respond to them.
-#[derive(clap::Subcommand)]
-enum GlueGunCommand {
-    Generate {
-        idl: IdlArg,
-
-        #[command(flatten)]
-        dest_crate: GlueGunDestinationCrate,
-    },
-}
-
 impl AsRef<GlueGunDestinationCrate> for GlueGunDestinationCrate {
     fn as_ref(&self) -> &GlueGunDestinationCrate {
         self
@@ -80,7 +78,7 @@ impl AsRef<GlueGunDestinationCrate> for GlueGunDestinationCrate {
 /// The arguments that identify where the crate should be generated.
 /// You don't normally need to inspect the fields of this struct,
 /// instead just invoke [`LibraryCrate::from_args`](`crate::codegen::LibraryCrate::from_args`).
-#[derive(clap::Args, Debug)]
+#[derive(Deserialize, Debug)]
 #[non_exhaustive]
 pub struct GlueGunDestinationCrate {
     /// Path at which to create the crate
@@ -88,41 +86,4 @@ pub struct GlueGunDestinationCrate {
 
     /// Name to give the crate; if `None`, then just let `cargo` pick a name.
     pub crate_name: Option<String>,
-}
-
-/// A wrapper around the GlueGun [`Idl`] that implements [`FromStr`][],
-/// permitting it to be used from the CLI.
-#[derive(Clone, Debug)]
-struct IdlArg {
-    idl: Idl,
-}
-
-impl FromStr for IdlArg {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(IdlArg {
-            idl: serde_json::from_str(s)?,
-        })
-    }
-}
-
-impl std::ops::Deref for IdlArg {
-    type Target = Idl;
-
-    fn deref(&self) -> &Self::Target {
-        &self.idl
-    }
-}
-
-impl AsRef<Idl> for IdlArg {
-    fn as_ref(&self) -> &Idl {
-        &self.idl
-    }
-}
-
-impl From<IdlArg> for Idl {
-    fn from(val: IdlArg) -> Self {
-        val.idl
-    }
 }

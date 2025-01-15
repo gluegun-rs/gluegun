@@ -1,4 +1,7 @@
-use std::process::Command;
+use std::{
+    io::Write,
+    process::{Command, Stdio},
+};
 
 use anyhow::Context;
 use clap::Parser;
@@ -60,19 +63,31 @@ fn apply_plugin(plugin: &str, package: &cargo_metadata::Package) -> anyhow::Resu
     let metadata = merge_metadata(workspace_metadata, package_metdata)
         .with_context(|| format!("merging workspace and package metadata"))?;
 
-    let exit_status = Command::new(format!("gluegun-{plugin}"))
-        .arg("generate")
-        .arg(serde_json::to_string(&idl)?)
-        .arg(serde_json::to_string(&metadata)?)
+    let mut child = Command::new(format!("gluegun-{plugin}"))
+        .arg("gg")
+        .stdin(Stdio::piped()) // Configure stdin
         .spawn()
-        .with_context(|| format!("spawning gluegun-{plugin}"))?
+        .with_context(|| format!("spawning gluegun-{plugin}"))?;
+
+    // Write the data to the child's stdin.
+    // This has to be kept in sync with the definition from `gluegun_core::cli``
+    let Some(mut stdin) = child.stdin.take() else {
+        anyhow::bail!("failed to take stdin");
+    };
+    writeln!(stdin, "{{")?;
+    writeln!(stdin, "  idl: {},", serde_json::to_string(&idl)?)?;
+    writeln!(stdin, "  metadata: {}", serde_json::to_string(&metadata)?)?;
+    writeln!(stdin, "}}")?;
+    std::mem::drop(stdin);
+
+    let exit_status = child
         .wait()
         .with_context(|| format!("waiting for gluegun-{plugin}"))?;
 
     if exit_status.success() {
         Ok(())
     } else {
-        anyhow::bail!("executing gluegun-{plugin} failed with code {exit_status}");
+        anyhow::bail!("gluegun-{plugin} failed with code {exit_status}");
     }
 }
 

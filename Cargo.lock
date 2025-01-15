@@ -353,6 +353,7 @@ dependencies = [
  "anyhow",
  "clap",
  "gluegun-idl",
+ "serde",
  "serde_json",
  "thiserror",
 ]

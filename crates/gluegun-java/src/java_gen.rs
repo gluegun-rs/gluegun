@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, path::PathBuf};
+use std::collections::BTreeMap;
 
 use gluegun_core::{
     codegen::{CodeWriter, DirBuilder},
@@ -230,7 +230,7 @@ impl<'idl> JavaCodeGenerator<'idl> {
         for input in signature.inputs() {
             write!(file, "{input_name},", input_name = input.name())?;
         }
-        write!(file, ");");
+        write!(file, ");")?;
         write!(file, "}}")?;
 
         Ok(())
