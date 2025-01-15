@@ -1,5 +1,5 @@
 use super::CodeWriter;
-use crate::cli::GlueGunCrateArgs;
+use crate::cli::GlueGunDestinationCrate;
 use anyhow::Context;
 use std::{
     collections::BTreeMap,
@@ -18,7 +18,7 @@ pub struct LibraryCrate {
 }
 
 impl LibraryCrate {
-    pub fn from_args(args: impl AsRef<GlueGunCrateArgs>) -> Self {
+    pub fn from_args(args: impl AsRef<GlueGunDestinationCrate>) -> Self {
         let args = args.as_ref();
         let mut cargo_command = std::process::Command::new("cargo");
         cargo_command.arg("new");

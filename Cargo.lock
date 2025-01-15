@@ -357,6 +357,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "gluegun-dummy"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "gluegun-core",
+]
+
+[[package]]
 name = "gluegun-idl"
 version = "0.1.0"
 dependencies = [

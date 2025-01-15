@@ -91,6 +91,14 @@ impl<'idl> RustCodeGenerator<'idl> {
         qname: &QualifiedName,
         method: &Method,
     ) -> anyhow::Result<()> {
+        self.generate_native_function(
+            lib_rs,
+            qname,
+            qname,
+            method.name(),
+            method.category(),
+            method.signature(),
+        )
     }
 
     /// Generate a native function definition that will be the backing function for a Java method.

@@ -23,7 +23,7 @@ proc-macro2 = "1.0"
 [workspace]
 members = [
     "crates/cargo-gluegun",
-    "crates/gluegun-core",
+    "crates/gluegun-core", "crates/gluegun-dummy",
     "crates/gluegun-idl",
     "crates/gluegun-java", 
     "demos/hello_world",
