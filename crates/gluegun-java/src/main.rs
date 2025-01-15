@@ -1,4 +1,6 @@
-use gluegun_core::{cli::GlueGunHelper, codegen::LibraryCrate};
+use gluegun_core::
+    cli::{GenerateCx, GlueGunHelper}
+;
 
 mod java_gen;
 mod rs_gen;
@@ -15,16 +17,12 @@ impl GlueGunHelper for GlueGunJava {
         "java".to_string()
     }
 
-    fn generate(
-        self,
-        idl: gluegun_core::idl::Idl,
-        crate_args: gluegun_core::cli::GlueGunDestinationCrate,
-    ) -> anyhow::Result<()> {
-        let mut lib = LibraryCrate::from_args(crate_args);
+    fn generate(self, cx: &mut GenerateCx) -> anyhow::Result<()> {
+        let mut lib = cx.create_library_crate();
 
         lib.add_dependency("duchess");
 
-        java_gen::JavaCodeGenerator::new(&idl).generate(lib.add_dir("java_src")?)?;
+        java_gen::JavaCodeGenerator::new(cx.idl()).generate(lib.add_dir("java_src")?)?;
 
         lib.generate()
     }

@@ -1,4 +1,4 @@
-use gluegun_core::cli::GlueGunHelper;
+use gluegun_core::cli::{GenerateCx, GlueGunHelper};
 
 pub fn main() -> anyhow::Result<()> {
     gluegun_core::cli::run(GlueGunDummy)
@@ -11,13 +11,9 @@ impl GlueGunHelper for GlueGunDummy {
         "dummy".to_string()
     }
 
-    fn generate(
-        self,
-        idl: gluegun_core::idl::Idl,
-        dest_crate: gluegun_core::cli::GlueGunDestinationCrate,
-    ) -> anyhow::Result<()> {
-        eprintln!("gluegun-dummy: dest_crate = {dest_crate:#?}");
-        eprintln!("gluegun-dummy: idl = {idl:#?}");
+    fn generate(self, cx: &mut GenerateCx) -> anyhow::Result<()> {
+        eprintln!("gluegun-dummy: dest_crate = {:#?}", cx.dest_crate());
+        eprintln!("gluegun-dummy: idl = {:#?}", cx.idl());
         Ok(())
     }
 }
