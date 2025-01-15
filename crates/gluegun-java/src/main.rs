@@ -1,6 +1,4 @@
-use gluegun_core::
-    cli::{GenerateCx, GlueGunHelper}
-;
+use gluegun_core::cli::{GenerateCx, GlueGunHelper};
 
 mod java_gen;
 mod rs_gen;
@@ -13,11 +11,13 @@ pub fn main() -> anyhow::Result<()> {
 struct GlueGunJava;
 
 impl GlueGunHelper for GlueGunJava {
+    type Metadata = ();
+
     fn name(&self) -> String {
         "java".to_string()
     }
 
-    fn generate(self, cx: &mut GenerateCx) -> anyhow::Result<()> {
+    fn generate(self, cx: &mut GenerateCx, &(): &()) -> anyhow::Result<()> {
         let mut lib = cx.create_library_crate();
 
         lib.add_dependency("duchess");
