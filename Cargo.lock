@@ -349,6 +349,7 @@ dependencies = [
 name = "gluegun-core"
 version = "0.1.0"
 dependencies = [
+ "accessors-rs",
  "anyhow",
  "clap",
  "gluegun-idl",

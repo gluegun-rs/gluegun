@@ -18,6 +18,10 @@ pub struct LibraryCrate {
 }
 
 impl LibraryCrate {
+    /// Create an instance from a [`GlueGunDestinationCrate`][].
+    /// This has no immediate effect.
+    /// You can use the various methods on this returned value to configure files that should be present.
+    /// Once everything is ready, you can invoke [`Self::execute`][] to make changes on disk.
     pub fn from_args(args: impl AsRef<GlueGunDestinationCrate>) -> Self {
         let args = args.as_ref();
         let mut cargo_command = std::process::Command::new("cargo");

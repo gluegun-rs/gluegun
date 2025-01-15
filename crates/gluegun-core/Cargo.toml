@@ -9,3 +9,4 @@ clap = { version = "4.5.26", features = ["derive"] }
 gluegun-idl = { version = "0.1.0", path = "../gluegun-idl" }
 serde_json = "1.0.135"
 thiserror = "2.0.11"
+accessors-rs = "0.1.0"

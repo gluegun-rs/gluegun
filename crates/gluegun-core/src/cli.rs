@@ -4,9 +4,10 @@
 
 use std::{path::PathBuf, str::FromStr};
 
+use accessors_rs::Accessors;
 use clap::Parser;
 
-use crate::idl::Idl;
+use crate::{codegen::LibraryCrate, idl::Idl};
 
 /// Trait implemented by gluegun helper applications.
 /// Your `main` function should invoke [`run`][].
@@ -16,14 +17,38 @@ pub trait GlueGunHelper {
     fn name(&self) -> String;
 
     /// Generate a helper crate `dest_crate` given the `idl`
-    fn generate(self, idl: Idl, dest_crate: GlueGunDestinationCrate) -> anyhow::Result<()>;
+    fn generate(self, cx: &mut GenerateCx) -> anyhow::Result<()>;
 }
 
 /// The "main" function for a gluegun helper. Defines standard argument parsing.
 pub fn run(helper: impl GlueGunHelper) -> anyhow::Result<()> {
     let args = Cli::try_parse()?;
     match args.command {
-        GlueGunCommand::Generate { idl, crate_args } => helper.generate(idl.into(), crate_args),
+        GlueGunCommand::Generate { idl, dest_crate } => {
+            let mut cx = GenerateCx {
+                idl: idl.into(),
+                dest_crate,
+            };
+            helper.generate(&mut cx)
+        }
+    }
+}
+
+/// Context provided to the [`GlueGunHelper::generate`][] implementation.
+#[derive(Accessors)]
+#[accessors(get)]
+pub struct GenerateCx {
+    /// The IDL from the source crate
+    idl: Idl,
+
+    /// Informaton about the destination crate
+    dest_crate: GlueGunDestinationCrate,
+}
+
+impl GenerateCx {
+    /// Create a [`LibraryCrate`][] instance.
+    pub fn create_library_crate(&mut self) -> LibraryCrate {
+        LibraryCrate::from_args(&self.dest_crate)
     }
 }
 
@@ -42,7 +67,7 @@ enum GlueGunCommand {
         idl: IdlArg,
 
         #[command(flatten)]
-        crate_args: GlueGunDestinationCrate,
+        dest_crate: GlueGunDestinationCrate,
     },
 }
 
