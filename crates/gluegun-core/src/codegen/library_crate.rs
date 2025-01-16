@@ -46,6 +46,9 @@ impl LibraryCrate {
 
     /// Generate the crate on disk. May fail.
     pub fn generate(mut self) -> anyhow::Result<()> {
+        // FIXME: we shouldn't just delete the old thing
+        std::fs::remove_dir_all(&self.crate_path)?;
+
         self.execute()
             .with_context(|| format!("generating crate at path {}", self.crate_path.display()))
     }

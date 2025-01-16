@@ -43,7 +43,7 @@ impl<'idl> JavaCodeGenerator<'idl> {
         let mut file = dir.add_file(util::class_file_name(qname))?;
         let (package, name) = qname.split_module_name();
         let package = package.camel_case().dotted();
-        write!(file, "package {package}")?;
+        write!(file, "package {package};")?;
         write!(file, "")?;
         write!(file, "public {java_type} {name} {{",)?;
 

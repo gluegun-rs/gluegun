@@ -23,6 +23,7 @@ impl GlueGunHelper for GlueGunJava {
         lib.add_dependency("duchess");
 
         java_gen::JavaCodeGenerator::new(cx.idl()).generate(lib.add_dir("java_src")?)?;
+        rs_gen::RustCodeGenerator::new(cx.idl()).generate(lib.add_dir("src")?)?;
 
         lib.generate()
     }

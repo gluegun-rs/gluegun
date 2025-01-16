@@ -18,6 +18,7 @@ harness = false
 syn = "2.0"
 quote = "1.0"
 proc-macro2 = "1.0"
+duchess = "0.3.0"
 
 
 [workspace]
@@ -27,7 +28,6 @@ members = [
     "crates/gluegun-idl",
     "crates/gluegun-java", 
     "demos/hello_world",
-    "demos/hello_world/gluegun/",
 ]
 
 [workspace.metadata.gluegun]

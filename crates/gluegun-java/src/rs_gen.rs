@@ -1,10 +1,8 @@
-use std::path::PathBuf;
-
 use gluegun_core::{
     codegen::{CodeWriter, DirBuilder},
     idl::{
-        Enum, Field, FunctionInput, Idl, Item, Method, MethodCategory, Name, QualifiedName, Record,
-        Resource, Scalar, SelfKind, Signature, Ty, TypeKind, Variant,
+        Enum, Idl, Item, Method, MethodCategory, Name, QualifiedName, Record, Resource, Signature,
+        Ty, TypeKind, Variant,
     },
 };
 
@@ -20,7 +18,7 @@ impl<'idl> RustCodeGenerator<'idl> {
     }
 
     pub(crate) fn generate(mut self, mut dir: DirBuilder<'_>) -> anyhow::Result<()> {
-        let mut lib_rs = dir.add_file("src/lib.rs")?;
+        let mut lib_rs = dir.add_file("lib.rs")?;
         for (qname, item) in self.idl.definitions() {
             self.generate_item(&mut lib_rs, qname, item)?;
         }
@@ -38,8 +36,16 @@ impl<'idl> RustCodeGenerator<'idl> {
             Item::Record(record) => self.generate_record(lib_rs, qname, record),
             Item::Variant(variant) => self.generate_variant(lib_rs, qname, variant),
             Item::Enum(an_enum) => self.generate_enum(lib_rs, qname, an_enum),
-            Item::Function(_) => {
-                // Skip functions for now. We will collect them and generate them as static methods.
+            Item::Function(f) => {
+                let java_qname = qname.module_name().join("Functions");
+                self.generate_native_function(
+                    lib_rs,
+                    qname,
+                    &java_qname,
+                    f.name(),
+                    &MethodCategory::StaticMethod,
+                    f.signature(),
+                )?;
                 Ok(())
             }
             _ => anyhow::bail!("unsupported item: {item:?}"),
@@ -64,7 +70,10 @@ impl<'idl> RustCodeGenerator<'idl> {
         qname: &QualifiedName,
         record: &Record,
     ) -> Result<(), anyhow::Error> {
-        todo!()
+        for method in record.methods() {
+            self.generate_method(lib_rs, qname, method)?;
+        }
+        Ok(())
     }
 
     fn generate_variant(
@@ -73,7 +82,10 @@ impl<'idl> RustCodeGenerator<'idl> {
         qname: &QualifiedName,
         variant: &Variant,
     ) -> Result<(), anyhow::Error> {
-        todo!()
+        for method in variant.methods() {
+            self.generate_method(lib_rs, qname, method)?;
+        }
+        Ok(())
     }
 
     fn generate_enum(
@@ -82,7 +94,10 @@ impl<'idl> RustCodeGenerator<'idl> {
         qname: &QualifiedName,
         an_enum: &Enum,
     ) -> Result<(), anyhow::Error> {
-        todo!()
+        for method in an_enum.methods() {
+            self.generate_method(lib_rs, qname, method)?;
+        }
+        Ok(())
     }
 
     fn generate_method(
@@ -148,28 +163,63 @@ impl<'idl> RustCodeGenerator<'idl> {
 
         // Fn body is just a call to the underlying Rust function
         write!(lib_rs, "{m}::{fn_name}(", m = rust_qname.colon_colon())?;
-        write!(lib_rs, "{m}::{fn_name}(", m = rust_qname.colon_colon())?;
+        for input in signature.inputs() {
+            let name = input.name();
+            write!(lib_rs, "{name},")?;
+        }
         write!(lib_rs, ")")?;
 
         write!(lib_rs, "}}")?;
-        write!(lib_rs, "}}")?;
+        write!(lib_rs, "}};")?;
         Ok(())
     }
 
     fn rust_parameter_ty(&self, ty: &Ty) -> String {
+        // FIXME: We really ought to be taking the Rust representation into account.
         match ty.kind() {
-            TypeKind::Map { key, value } => todo!(),
-            TypeKind::Vec { element } => todo!(),
-            TypeKind::Set { element } => todo!(),
-            TypeKind::Path => todo!(),
-            TypeKind::String => todo!(),
-            TypeKind::Option { element } => todo!(),
-            TypeKind::Result { ok, err } => todo!(),
-            TypeKind::Tuple { elements } => todo!(),
+            TypeKind::Map { key, value } => {
+                format!(
+                    "HashMap<{}, {}>",
+                    self.rust_parameter_ty(key),
+                    self.rust_parameter_ty(value),
+                )
+            }
+            TypeKind::Vec { element } => {
+                format!("Vec<{}>", self.rust_parameter_ty(element))
+            }
+            TypeKind::Set { element } => {
+                format!("HashSet<{}>", self.rust_parameter_ty(element),)
+            }
+            TypeKind::Path => {
+                format!("PathBuf")
+            }
+            TypeKind::String => {
+                format!("String")
+            }
+            TypeKind::Option { element } => {
+                format!("Option<{}>", self.rust_parameter_ty(element))
+            }
+            TypeKind::Result { ok, err } => {
+                format!(
+                    "Result<{}, {}>",
+                    self.rust_parameter_ty(ok),
+                    self.rust_parameter_ty(err)
+                )
+            }
+            TypeKind::Tuple { elements } => {
+                format!(
+                    "({})",
+                    elements
+                        .iter()
+                        .map(|ty| self.rust_parameter_ty(ty))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
             TypeKind::Scalar(scalar) => scalar.to_string(),
-            TypeKind::Future { output } => todo!(),
-            TypeKind::Error => todo!(),
-            TypeKind::UserType { qname } => todo!(),
+            TypeKind::Future { output: _ } => todo!(),
+            TypeKind::Error => format!("anyhow::Error"),
+            TypeKind::UserType { qname } => qname.colon_colon(),
             _ => todo!(),
         }
     }

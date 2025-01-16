@@ -1,8 +1,5 @@
-use std::{
-    io::Write,
-    path::PathBuf,
-    process::{ChildStdin, Command, ExitStatus, Stdio},
-};
+use std::io::Write;
+use std::process::{ChildStdin, Command, ExitStatus, Stdio};
 
 use anyhow::Context;
 use cargo_metadata::camino::Utf8PathBuf;
@@ -103,7 +100,7 @@ fn execute_plugin(
 ) -> anyhow::Result<ExitStatus> {
     // Execute the helper
     let mut child = plugin_command(workspace_metadata, &package.metadata, plugin)?
-        .arg("gg")
+        .arg(format!("gg-{}", plugin))
         .stdin(Stdio::piped()) // Configure stdin
         .spawn()
         .with_context(|| format!("spawning gluegun-{plugin}"))?;
@@ -114,14 +111,18 @@ fn execute_plugin(
         anyhow::bail!("failed to take stdin");
     };
     let write_data = |mut stdin: ChildStdin| -> anyhow::Result<()> {
-        writeln!(stdin, "{{")?;
-        writeln!(stdin, "  idl: {},", serde_json::to_string(&idl)?)?;
-        writeln!(stdin, "  metadata: {},", serde_json::to_string(&metadata)?)?;
-        writeln!(stdin, "  dest_crate: {{")?;
-        writeln!(stdin, "    crate_name: {crate_name:?},")?;
-        writeln!(stdin, "    path: {crate_path:?}")?;
-        writeln!(stdin, "  }}")?;
-        writeln!(stdin, "}}")?;
+        writeln!(stdin, r#"{{"#)?;
+        writeln!(stdin, r#"  "idl": {},"#, serde_json::to_string(&idl)?)?;
+        writeln!(
+            stdin,
+            r#"  "metadata": {},"#,
+            serde_json::to_string(&metadata)?
+        )?;
+        writeln!(stdin, r#"  "dest_crate": {{"#)?;
+        writeln!(stdin, r#"    "crate_name": {crate_name:?},"#)?;
+        writeln!(stdin, r#"    "path": {crate_path:?}"#)?;
+        writeln!(stdin, r#"  }}"#)?;
+        writeln!(stdin, r#"}}"#)?;
         Ok(())
     };
     write_data(stdin).with_context(|| format!("writing data to gluegun-{plugin}"))?;
@@ -213,7 +214,7 @@ fn dest_crate_name_and_path(
     package: &cargo_metadata::Package,
 ) -> anyhow::Result<(String, Utf8PathBuf)> {
     // Default crate name is `foo-x`, taken from the plugin
-    let crate_name = format!("{:?}-{plugin}", package.name);
+    let crate_name = format!("{}-{plugin}", package.name);
 
     // Default path is to make a sibling of the target crate
     let Some(package_parent) = package.manifest_path.parent().unwrap().parent() else {

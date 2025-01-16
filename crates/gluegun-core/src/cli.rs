@@ -32,10 +32,13 @@ where
 {
     // cargo-gluegun will invoke us with `gg` as argument and a JSON doc on stdin.
     let mut args = std::env::args();
-    let Some(arg0) = args.next() else {
-        anyhow::bail!("expected to be invoked by `cargo gluegun`");
+    let Some(_arg0) = args.next() else {
+        anyhow::bail!("expected to give given an argument");
     };
-    if arg0 != "gg" {
+    let Some(arg1) = args.next() else {
+        anyhow::bail!("expected to give given an argument");
+    };
+    if arg1 != format!("gg-{}", helper.name()) {
         anyhow::bail!("expected to be invoked by `cargo gluegun`");
     }
 
