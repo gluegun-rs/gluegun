@@ -138,6 +138,7 @@ dependencies = [
  "clap-cargo",
  "gluegun-core",
  "gluegun-idl",
+ "lazy_static",
  "serde_json",
 ]
 

@@ -30,6 +30,9 @@ members = [
     "demos/hello_world/gluegun/",
 ]
 
+[workspace.metadata.gluegun]
+plugin_command = "cargo run -q -p gluegun-{plugin} --"
+
 [dev-dependencies]
 anyhow = "1.0.95"
 lazy_static = "1.5.0"

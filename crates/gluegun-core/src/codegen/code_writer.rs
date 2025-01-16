@@ -1,19 +1,19 @@
 use std::io::Write;
 
 /// A `CodeWriter` can be used with the [`std::fmt::write`][] macro to generate indented code.
-/// 
+///
 /// Example:
-/// 
-/// ```rust
+///
+/// ```rust,ignore
 /// let cw = CodeWriter::new(...);
 /// write!(cw, "void foo {");
 /// write!(cw, "this will be indented")
 /// write!(cw, "}");
 /// ```
-/// 
+///
 /// would generate
-/// 
-/// ```
+///
+/// ```ignore
 /// void foo() {
 ///     this will be indented
 /// }
@@ -25,9 +25,12 @@ pub struct CodeWriter<'w> {
 
 impl<'w> CodeWriter<'w> {
     pub(crate) fn new(writer: impl Write + 'w) -> Self {
-        Self { writer: Box::new(writer), indent: 0 }
+        Self {
+            writer: Box::new(writer),
+            indent: 0,
+        }
     }
-    
+
     pub fn write_fmt(&mut self, fmt: std::fmt::Arguments<'_>) -> anyhow::Result<()> {
         let mut string = String::new();
         std::fmt::write(&mut string, fmt).unwrap();

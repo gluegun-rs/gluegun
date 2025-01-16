@@ -1,9 +1,11 @@
 use std::{
     io::Write,
-    process::{Command, Stdio},
+    path::PathBuf,
+    process::{ChildStdin, Command, ExitStatus, Stdio},
 };
 
 use anyhow::Context;
+use cargo_metadata::camino::Utf8PathBuf;
 use clap::Parser;
 
 /// A simple Cli you can use for your own parser.
@@ -36,14 +38,18 @@ pub fn cli_main() -> anyhow::Result<()> {
 
     for package in selected {
         for plugin in &cli.plugins {
-            apply_plugin(plugin, package)?;
+            apply_plugin(plugin, &metadata.workspace_metadata, package)?;
         }
     }
 
     Ok(())
 }
 
-fn apply_plugin(plugin: &str, package: &cargo_metadata::Package) -> anyhow::Result<()> {
+fn apply_plugin(
+    plugin: &str,
+    workspace_metadata: &serde_json::Value,
+    package: &cargo_metadata::Package,
+) -> anyhow::Result<()> {
     if let Some(_) = package.source {
         anyhow::bail!("{pkg}: can only process local packages", pkg = package.name);
     }
@@ -58,37 +64,167 @@ fn apply_plugin(plugin: &str, package: &cargo_metadata::Package) -> anyhow::Resu
 
     // Search for `workspace.metadata.gluegun.tool_name` and
     // `package.metadata.gluegun.tool_name`.
-    let workspace_metadata = extract_metadata(plugin, &package.metadata);
-    let package_metdata = extract_metadata(plugin, &package.metadata);
-    let metadata = merge_metadata(workspace_metadata, package_metdata)
+    let plugin_workspace_metadata = extract_metadata(plugin, workspace_metadata);
+    let plugin_package_metadata = extract_metadata(plugin, &package.metadata);
+    let metadata = merge_metadata(plugin_workspace_metadata, plugin_package_metadata)
         .with_context(|| format!("merging workspace and package metadata"))?;
 
-    let mut child = Command::new(format!("gluegun-{plugin}"))
-        .arg("gg")
-        .stdin(Stdio::piped()) // Configure stdin
-        .spawn()
-        .with_context(|| format!("spawning gluegun-{plugin}"))?;
+    // Compute destination crate name and path
+    let (crate_name, crate_path) = dest_crate_name_and_path(plugin, workspace_metadata, package)
+        .with_context(|| format!("computing destination crate name and path"))?;
 
-    // Write the data to the child's stdin.
-    // This has to be kept in sync with the definition from `gluegun_core::cli``
-    let Some(mut stdin) = child.stdin.take() else {
-        anyhow::bail!("failed to take stdin");
-    };
-    writeln!(stdin, "{{")?;
-    writeln!(stdin, "  idl: {},", serde_json::to_string(&idl)?)?;
-    writeln!(stdin, "  metadata: {}", serde_json::to_string(&metadata)?)?;
-    writeln!(stdin, "}}")?;
-    std::mem::drop(stdin);
-
-    let exit_status = child
-        .wait()
-        .with_context(|| format!("waiting for gluegun-{plugin}"))?;
+    // Execute the plugin
+    let exit_status = execute_plugin(
+        plugin,
+        workspace_metadata,
+        package,
+        &idl,
+        &metadata,
+        &crate_name,
+        &crate_path,
+    )
+    .with_context(|| format!("executing plugin `{plugin}`"))?;
 
     if exit_status.success() {
         Ok(())
     } else {
         anyhow::bail!("gluegun-{plugin} failed with code {exit_status}");
     }
+}
+
+fn execute_plugin(
+    plugin: &str,
+    workspace_metadata: &serde_json::Value,
+    package: &cargo_metadata::Package,
+    idl: &gluegun_idl::Idl,
+    metadata: &serde_json::Value,
+    crate_name: &str,
+    crate_path: &Utf8PathBuf,
+) -> anyhow::Result<ExitStatus> {
+    // Execute the helper
+    let mut child = plugin_command(workspace_metadata, &package.metadata, plugin)?
+        .arg("gg")
+        .stdin(Stdio::piped()) // Configure stdin
+        .spawn()
+        .with_context(|| format!("spawning gluegun-{plugin}"))?;
+
+    // Write the data to the child's stdin.
+    // This has to be kept in sync with the definition from `gluegun_core::cli`.
+    let Some(stdin) = child.stdin.take() else {
+        anyhow::bail!("failed to take stdin");
+    };
+    let write_data = |mut stdin: ChildStdin| -> anyhow::Result<()> {
+        writeln!(stdin, "{{")?;
+        writeln!(stdin, "  idl: {},", serde_json::to_string(&idl)?)?;
+        writeln!(stdin, "  metadata: {},", serde_json::to_string(&metadata)?)?;
+        writeln!(stdin, "  dest_crate: {{")?;
+        writeln!(stdin, "    crate_name: {crate_name:?},")?;
+        writeln!(stdin, "    path: {crate_path:?}")?;
+        writeln!(stdin, "  }}")?;
+        writeln!(stdin, "}}")?;
+        Ok(())
+    };
+    write_data(stdin).with_context(|| format!("writing data to gluegun-{plugin}"))?;
+
+    Ok(child
+        .wait()
+        .with_context(|| format!("waiting for gluegun-{plugin}"))?)
+}
+
+fn plugin_command(
+    workspace_metadata: &serde_json::Value,
+    package_metadata: &serde_json::Value,
+    plugin: &str,
+) -> anyhow::Result<Command> {
+    eprintln!("plugin_command({workspace_metadata:?}, {package_metadata:?}");
+
+    if let Some(c) = customized_plugin_command(workspace_metadata, package_metadata, plugin)? {
+        return Ok(c);
+    }
+
+    Ok(Command::new(format!("gluegun-{plugin}")))
+}
+
+fn get_gluegun_field_from_package_or_workspace<'v>(
+    workspace_metadata: &'v serde_json::Value,
+    package_metadata: &'v serde_json::Value,
+    field_name: &str,
+) -> anyhow::Result<Option<&'v serde_json::Value>> {
+    fn get_gluegun_field_from<'v>(
+        json_value: &'v serde_json::Value,
+        field_name: &str,
+    ) -> anyhow::Result<Option<&'v serde_json::Value>> {
+        let Some(gluegun) = json_value.get("gluegun") else {
+            return Ok(None);
+        };
+
+        let Some(field) = gluegun.get(field_name) else {
+            return Ok(None);
+        };
+
+        Ok(Some(field))
+    }
+
+    if let Some(f) = get_gluegun_field_from(package_metadata, field_name)? {
+        return Ok(Some(f));
+    }
+
+    get_gluegun_field_from(workspace_metadata, field_name)
+}
+
+fn customized_plugin_command(
+    workspace_metadata: &serde_json::Value,
+    package_metadata: &serde_json::Value,
+    plugin: &str,
+) -> anyhow::Result<Option<Command>> {
+    let Some(plugin_command) = get_gluegun_field_from_package_or_workspace(
+        workspace_metadata,
+        package_metadata,
+        "plugin_command",
+    )?
+    else {
+        return Ok(None);
+    };
+
+    let serde_json::Value::String(plugin_command) = plugin_command else {
+        anyhow::bail!("expected a string for workspace configuration `gluegun.plugin_command`")
+    };
+
+    // should probably...do something better...
+    let s = plugin_command.replace("{plugin}", plugin);
+    if s.contains("'") {
+        anyhow::bail!("`gluegun.plugin_command` cannot contain `'` characters (FIXME)")
+    }
+
+    let mut words = s.split_whitespace();
+    let Some(word0) = words.next() else {
+        anyhow::bail!("expected at least one word in `gluegun.plugin_command`")
+    };
+
+    let mut cmd = Command::new(word0);
+    cmd.args(words);
+
+    Ok(Some(cmd))
+}
+
+fn dest_crate_name_and_path(
+    plugin: &str,
+    _workspace_metadata: &serde_json::Value,
+    package: &cargo_metadata::Package,
+) -> anyhow::Result<(String, Utf8PathBuf)> {
+    // Default crate name is `foo-x`, taken from the plugin
+    let crate_name = format!("{:?}-{plugin}", package.name);
+
+    // Default path is to make a sibling of the target crate
+    let Some(package_parent) = package.manifest_path.parent().unwrap().parent() else {
+        anyhow::bail!(
+            "cannot compute parent path for crate at `{}`",
+            package.manifest_path
+        );
+    };
+    let crate_path = package_parent.join(&crate_name);
+
+    Ok((crate_name, crate_path))
 }
 
 /// Given a root object, exact `{metadata}.gluegun.{plugin}`:
