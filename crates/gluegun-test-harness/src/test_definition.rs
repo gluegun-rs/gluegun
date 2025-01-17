@@ -77,6 +77,16 @@ impl Test {
         self
     }
 
+    pub fn replace(
+        mut self,
+        path: impl Into<Utf8PathBuf>,
+        from: impl ToString,
+        to: impl ToString,
+    ) -> Self {
+        self.actions.push(TestAction::Replace { path: path.into(), find: from.to_string(), replace: to.to_string() });
+        self
+    }
+
     /// Execute the test from the given directory
     pub fn execute(self, directory: Utf8PathBuf) -> anyhow::Result<()> {
         execute_test(self, directory)
