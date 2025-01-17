@@ -1,5 +1,6 @@
 use std::ffi::OsString;
 use std::io::Write;
+use std::path::Path;
 use std::process::{ChildStdin, Command, ExitStatus, Stdio};
 
 use anyhow::Context;
@@ -21,13 +22,16 @@ struct Cli {
 
 /// Main function for the gluegun CLI.
 pub fn cli_main() -> anyhow::Result<()> {
-    cli_main_from(std::env::args_os())
+    cli_main_from(std::env::current_dir()?, std::env::args_os())
 }
 
 /// Execute GlueGun CLI with the given arguments.
 pub fn cli_main_from(
+    current_directory: impl AsRef<Path>,
     args: impl IntoIterator<Item = impl Into<OsString> + Clone>,
 ) -> anyhow::Result<()> {
+    let current_directory = current_directory.as_ref();
+
     let cli = Cli::try_parse_from(args)?;
 
     let metadata = cli.manifest.metadata().exec()?;
@@ -43,7 +47,12 @@ pub fn cli_main_from(
 
     for package in selected {
         for plugin in &cli.plugins {
-            apply_plugin(plugin, &metadata.workspace_metadata, package)?;
+            apply_plugin(
+                plugin,
+                &current_directory,
+                &metadata.workspace_metadata,
+                package,
+            )?;
         }
     }
 
@@ -52,6 +61,7 @@ pub fn cli_main_from(
 
 fn apply_plugin(
     plugin: &str,
+    current_directory: &Path,
     workspace_metadata: &serde_json::Value,
     package: &cargo_metadata::Package,
 ) -> anyhow::Result<()> {
@@ -81,6 +91,7 @@ fn apply_plugin(
     // Execute the plugin
     let exit_status = execute_plugin(
         plugin,
+        current_directory,
         workspace_metadata,
         package,
         &idl,
@@ -99,6 +110,7 @@ fn apply_plugin(
 
 fn execute_plugin(
     plugin: &str,
+    current_directory: &Path,
     workspace_metadata: &serde_json::Value,
     package: &cargo_metadata::Package,
     idl: &gluegun_idl::Idl,
@@ -108,6 +120,7 @@ fn execute_plugin(
 ) -> anyhow::Result<ExitStatus> {
     // Execute the helper
     let mut child = plugin_command(workspace_metadata, &package.metadata, plugin)?
+        .current_dir(current_directory)
         .arg(format!("gg-{}", plugin))
         .stdin(Stdio::piped()) // Configure stdin
         .spawn()

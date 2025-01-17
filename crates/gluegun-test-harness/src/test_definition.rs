@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use camino::Utf8PathBuf;
+use cp_r::CopyOptions;
+use temp_dir::TempDir;
 
 pub struct Test {
     test_crate: Arc<String>,
@@ -63,7 +65,7 @@ impl Test {
             .finish()
     }
 
-    /// Create a builder to execute cargo with the given options
+    /// Add a step to invoke `cargo build` on the crates generated from the plugin
     pub fn cargo_build_plugin_crates(mut self) -> Self {
         let test_crate = self.test_crate.clone();
         let plugins = self.plugins.clone();
@@ -83,13 +85,18 @@ impl Test {
         from: impl ToString,
         to: impl ToString,
     ) -> Self {
-        self.actions.push(TestAction::Replace { path: path.into(), find: from.to_string(), replace: to.to_string() });
+        self.actions.push(TestAction::Replace {
+            path: path.into(),
+            find: from.to_string(),
+            replace: to.to_string(),
+        });
         self
     }
 
     /// Execute the test from the given directory
     pub fn execute(self, directory: Utf8PathBuf) -> anyhow::Result<()> {
-        execute_test(self, directory)
+        TestExecutor::new(self, directory)?.execute()?;
+        Ok(())
     }
 }
 
@@ -117,66 +124,81 @@ impl CommandBuilder {
     }
 }
 
-fn execute_test(test: Test, directory: Utf8PathBuf) -> anyhow::Result<()> {
-    let _dir_guard = DirectoryGuard::new()?;
-
-    std::env::set_current_dir(&directory)
-        .with_context(|| format!("changing to directory `{directory}`"))?;
-
-    for action in &test.actions {
-        execute_action(action).with_context(|| format!("executing action: {action:?}"))?;
-    }
-
-    Ok(())
+struct TestExecutor {
+    test: Test,
+    temp_dir: TempDir,
+    source_directory: Utf8PathBuf,
 }
 
-struct DirectoryGuard {
-    start_dir: Utf8PathBuf,
-}
-
-impl DirectoryGuard {
-    fn new() -> anyhow::Result<Self> {
-        let start_dir = Utf8PathBuf::try_from(std::env::current_dir()?)?;
-        Ok(Self { start_dir })
-    }
-}
-
-impl Drop for DirectoryGuard {
-    fn drop(&mut self) {
-        let _ = std::env::set_current_dir(self.start_dir.clone());
-    }
-}
-
-fn execute_action(action: &TestAction) -> anyhow::Result<()> {
-    match action {
-        TestAction::Cargo { options } => cargo_action(options),
-        TestAction::Replace {
-            path,
-            find,
-            replace,
-        } => replace_action(path, find, replace),
-        TestAction::CargoGluegun { options } => cargo_gluegun::cli_main_from(options),
-    }
-}
-
-fn cargo_action(options: &[String]) -> anyhow::Result<()> {
-    let mut command = std::process::Command::new("cargo");
-    command.args(options);
-    let status = command.status()?;
-    if !status.success() {
-        anyhow::bail!("cargo command failed");
-    }
-    Ok(())
-}
-
-fn replace_action(path: &Utf8PathBuf, find: &str, replace: &str) -> anyhow::Result<()> {
-    let content = std::fs::read_to_string(path)?;
-
-    if !content.contains(find) {
-        anyhow::bail!("find string not found in file");
+impl TestExecutor {
+    fn new(test: Test, source_directory: Utf8PathBuf) -> anyhow::Result<Self> {
+        let temp_dir = TempDir::new()?;
+        Ok(Self {
+            test,
+            temp_dir,
+            source_directory,
+        })
     }
 
-    let content = content.replace(find, replace);
-    std::fs::write(path, content)?;
-    Ok(())
+    fn execute(&self) -> anyhow::Result<()> {
+        eprintln!(
+            "# executing test {src} in {temp_dir}",
+            src = self.source_directory,
+            temp_dir = self.temp_dir.path().display(),
+        );
+
+        // initialize temporary directory with contents of `directory`
+        CopyOptions::new().copy_tree(&self.source_directory, &self.temp_dir)?;
+
+        // test test actions
+        for action in &self.test.actions {
+            self.execute_action(action).with_context(|| format!("executing action: {action:?}"))?;
+        }
+
+        Ok(())
+    }
+
+    fn execute_action(&self, action: &TestAction) -> anyhow::Result<()> {
+        match action {
+            TestAction::Cargo { options } => self.cargo_action(options),
+        
+            TestAction::Replace {
+                path,
+                find,
+                replace,
+            } => self.replace_action(path, find, replace),
+
+            TestAction::CargoGluegun { options } => {
+                cargo_gluegun::cli_main_from(
+                    &self.temp_dir,
+                    options,
+                )
+            }
+        }
+    }
+
+    fn cargo_action(&self, options: &[String]) -> anyhow::Result<()> {
+        let mut command = std::process::Command::new("cargo");
+        command.current_dir(&self.temp_dir);
+        command.args(options);
+        let status = command.status()?;
+        if !status.success() {
+            anyhow::bail!("cargo command failed");
+        }
+        Ok(())
+    }
+
+    fn replace_action(&self, path: &Utf8PathBuf, find: &str, replace: &str) -> anyhow::Result<()> {
+        let file_path = Utf8PathBuf::try_from(self.temp_dir.path().join(path))?;
+
+        let content = std::fs::read_to_string(&file_path)?;
+
+        if !content.contains(find) {
+            anyhow::bail!("`{file_path}` does not contain `{find}`");
+        }
+
+        let content = content.replace(find, replace);
+        std::fs::write(path, content)?;
+        Ok(())
+    }
 }
