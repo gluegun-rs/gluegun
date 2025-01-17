@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use gluegun_core::{
-    codegen::{CodeWriter, DirBuilder},
+    codegen::{CodeWriter, DirBuilder, Separator},
     idl::{
         Enum, Field, Function, FunctionInput, Idl, Item, Method, MethodCategory, Name,
         QualifiedName, Record, Resource, Scalar, SelfKind, Signature, Ty, TypeKind, Variant,
@@ -151,8 +151,8 @@ impl<'idl> JavaCodeGenerator<'idl> {
         an_enum: &Enum,
     ) -> anyhow::Result<()> {
         self.generate_java_file(dir, "enum", qname, |this, file| {
-            for arm in an_enum.arms() {
-                write!(file, "{},", arm.name().upper_camel_case())?;
+            for (arm, sep) in an_enum.arms().iter().comma_separated() {
+                write!(file, "{}{sep}", arm.name().upper_camel_case())?;
             }
             this.generate_methods(file, an_enum.methods())?;
             Ok(())
@@ -241,10 +241,10 @@ impl<'idl> JavaCodeGenerator<'idl> {
         file: &mut CodeWriter<'_>,
         inputs: &[FunctionInput],
     ) -> anyhow::Result<()> {
-        for input in inputs {
+        for (input, sep) in inputs.iter().comma_separated() {
             write!(
                 file,
-                "{ty} {name},",
+                "{ty} {name}{sep}",
                 ty = self.write_ty(input.ty())?,
                 name = input.name()
             )?;

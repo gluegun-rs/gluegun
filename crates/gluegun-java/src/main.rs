@@ -20,7 +20,7 @@ impl GlueGunHelper for GlueGunJava {
 
     fn generate(self, cx: &mut GenerateCx, &(): &()) -> anyhow::Result<()> {
         let mut lib = cx.create_library_crate();
-        lib.add_dependency("duchess");
+        lib.add_dependency("duchess", "0.3");
 
         let java_src_dir = lib.add_dir("java_src").with_context(||format!("adding `java_src` dir"))?;
         java_gen::JavaCodeGenerator::new(cx.idl()).generate(java_src_dir).with_context(|| format!("generaring Java sources"))?;

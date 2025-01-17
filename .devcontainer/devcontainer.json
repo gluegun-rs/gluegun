@@ -12,7 +12,8 @@
 	"features": {
 		"ghcr.io/eitsupi/devcontainer-features/mdbook:1": {},
 		"devwasm.azurecr.io/dev-wasm/dev-wasm-feature/wasmtime-wasi:0": {},
-		"ghcr.io/jungaretti/features/ripgrep:1": {}
+		"ghcr.io/jungaretti/features/ripgrep:1": {},
+		"ghcr.io/devcontainers/features/java:1": {}
 	},
 
 	"customizations": {

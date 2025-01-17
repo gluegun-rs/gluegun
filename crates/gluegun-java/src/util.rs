@@ -4,9 +4,12 @@ use gluegun_core::idl::QualifiedName;
 
 pub(crate) fn class_file_name(qname: &QualifiedName) -> PathBuf {
     let mut path = PathBuf::new();
-    for name in qname.camel_case().names() {
+    let qname = qname.camel_case();
+    let (class_name, package_names) = qname.names().split_last().unwrap();
+    for name in package_names {
         path.push(name.text());
     }
+    path.push(class_name.upper_camel_case().text());
     path.set_extension("java");
     path
 }

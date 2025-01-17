@@ -11,6 +11,7 @@ use std::{
 /// Type to create a GlueGun adapter crate.
 #[derive(Debug)]
 pub struct LibraryCrate {
+    crate_name: String,
     crate_path: PathBuf,
     cargo_command: Command,
     dependencies: Vec<Dependency>,
@@ -30,13 +31,11 @@ impl LibraryCrate {
         // cargo_command.arg("-q");
         cargo_command.arg("--lib");
         cargo_command.arg(&args.path);
-
-        if let Some(crate_name) = &args.crate_name {
-            cargo_command.arg("--name");
-            cargo_command.arg(crate_name);
-        }
+        cargo_command.arg("--name");
+        cargo_command.arg(&args.crate_name);
 
         Self {
+            crate_name: args.crate_name.clone(),
             crate_path: args.path.clone(),
             cargo_command,
             directories: Default::default(),
@@ -73,7 +72,7 @@ impl LibraryCrate {
 
         for dependency in &self.dependencies {
             eprintln!("adding {dependency:?}");
-            dependency.execute_cargo_add()?;
+            dependency.execute_cargo_add(&self.crate_name)?;
         }
 
         for directory in &self.directories {
@@ -145,12 +144,12 @@ impl LibraryCrate {
 
     /// Add a dependency to the crate with the given name.
     /// Returns a builder that can be used to configure additional options.
-    pub fn add_dependency(&mut self, crate_name: &str) -> AddDependency<'_> {
+    pub fn add_dependency(&mut self, crate_name: &str, version: &str) -> AddDependency<'_> {
         AddDependency {
             krate: self,
             dependency: Dependency {
                 crate_name: crate_name.to_string(),
-                version: Default::default(),
+                version: version.to_string(),
                 features: Default::default(),
                 no_default_features: Default::default(),
             },
@@ -245,22 +244,21 @@ impl Drop for LibraryFileWriter<'_> {
 #[derive(Debug, Default)]
 struct Dependency {
     crate_name: String,
-    version: Option<String>,
+    version: String,
     features: Vec<String>,
     no_default_features: bool,
 }
 
 impl Dependency {
-    fn execute_cargo_add(&self) -> anyhow::Result<()> {
+    fn execute_cargo_add(&self, crate_name: &str) -> anyhow::Result<()> {
         let mut command = std::process::Command::new("cargo");
         command.arg("add");
 
-        if let Some(v) = &self.version {
-            command.arg(&format!("{}@{}", self.crate_name, v));
-        } else {
-            command.arg(&self.crate_name);
-        }
+        command.arg("-p");
+        command.arg(crate_name);
 
+        command.arg(&format!("{}@{}", self.crate_name, self.version));
+        
         if !self.features.is_empty() {
             command.arg("--features");
             command.arg(self.features.join(","));
@@ -290,15 +288,9 @@ pub struct AddDependency<'w> {
 }
 
 impl AddDependency<'_> {
-    /// Add a version spec to the dependency
-    pub fn version(mut self, version: impl AsRef<str>) -> Self {
-        self.dependency.version = Some(version.as_ref().to_string());
-        self
-    }
-
     /// Add a required feature for the dependency
-    pub fn feature(mut self, feature: impl AsRef<str>) -> Self {
-        self.dependency.features.push(feature.as_ref().to_string());
+    pub fn feature(mut self, feature: impl ToString) -> Self {
+        self.dependency.features.push(feature.to_string());
         self
     }
 

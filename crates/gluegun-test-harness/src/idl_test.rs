@@ -85,6 +85,8 @@ fn run_idl_test(test: &IdlTest) -> anyhow::Result<()> {
     if idl_json != reference_json {
         if *BLESS {
             eprintln!("test `{}` blessed because BLESS=1", test.rs_path.display());
+            std::fs::write(&test.idl_path, idl_json)
+                .with_context(|| format!("failed to write `{}`", test.idl_path.display()))?;
         } else {
             let diff = similar::udiff::unified_diff(
                 similar::Algorithm::Myers,

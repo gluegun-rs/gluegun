@@ -1,4 +1,4 @@
-//! A "GlueGun CLI" is a Rust crate that creates the glue between the Rust code and
+ //! A "GlueGun CLI" is a Rust crate that creates the glue between the Rust code and
 //! some other language. Most GlueGun CLI crates can use the Clap structs defined
 //! in this file.
 
@@ -97,5 +97,5 @@ pub struct GlueGunDestinationCrate {
     pub path: PathBuf,
 
     /// Name to give the crate; if `None`, then just let `cargo` pick a name.
-    pub crate_name: Option<String>,
+    pub crate_name: String,
 }
