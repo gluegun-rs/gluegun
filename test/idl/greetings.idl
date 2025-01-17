@@ -16,11 +16,37 @@
       },
       {
         "Resource": {
+          "span": {
+            "path": "test/idl/greetings.rs",
+            "start": {
+              "byte": 11,
+              "line": 1,
+              "column": 12
+            },
+            "end": {
+              "byte": 20,
+              "line": 1,
+              "column": 21
+            }
+          },
           "name": {
             "text": "Greetings"
           },
           "methods": [
             {
+              "span": {
+                "path": "test/idl/greetings.rs",
+                "start": {
+                  "byte": 76,
+                  "line": 6,
+                  "column": 12
+                },
+                "end": {
+                  "byte": 79,
+                  "line": 6,
+                  "column": 15
+                }
+              },
               "category": "Constructor",
               "name": {
                 "text": "new"
@@ -64,6 +90,19 @@
               }
             },
             {
+              "span": {
+                "path": "test/idl/greetings.rs",
+                "start": {
+                  "byte": 175,
+                  "line": 12,
+                  "column": 12
+                },
+                "end": {
+                  "byte": 183,
+                  "line": 12,
+                  "column": 20
+                }
+              },
               "category": {
                 "BuilderMethod": "ByValue"
               },
@@ -74,6 +113,19 @@
                 "is_async": "No",
                 "inputs": [
                   {
+                    "span": {
+                      "path": "test/idl/greetings.rs",
+                      "start": {
+                        "byte": 194,
+                        "line": 12,
+                        "column": 31
+                      },
+                      "end": {
+                        "byte": 202,
+                        "line": 12,
+                        "column": 39
+                      }
+                    },
                     "name": {
                       "text": "language"
                     },
@@ -131,6 +183,19 @@
               }
             },
             {
+              "span": {
+                "path": "test/idl/greetings.rs",
+                "start": {
+                  "byte": 297,
+                  "line": 17,
+                  "column": 12
+                },
+                "end": {
+                  "byte": 302,
+                  "line": 17,
+                  "column": 17
+                }
+              },
               "category": {
                 "InstanceMethod": "ByValue"
               },
@@ -141,6 +206,19 @@
                 "is_async": "No",
                 "inputs": [
                   {
+                    "span": {
+                      "path": "test/idl/greetings.rs",
+                      "start": {
+                        "byte": 309,
+                        "line": 17,
+                        "column": 24
+                      },
+                      "end": {
+                        "byte": 313,
+                        "line": 17,
+                        "column": 28
+                      }
+                    },
                     "name": {
                       "text": "name"
                     },

@@ -16,6 +16,19 @@
       },
       {
         "Function": {
+          "span": {
+            "path": "test/idl/hello_world.rs",
+            "start": {
+              "byte": 7,
+              "line": 1,
+              "column": 8
+            },
+            "end": {
+              "byte": 18,
+              "line": 1,
+              "column": 19
+            }
+          },
           "name": {
             "text": "hello_world"
           },

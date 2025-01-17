@@ -16,11 +16,37 @@
       },
       {
         "Resource": {
+          "span": {
+            "path": "test/idl/character.rs",
+            "start": {
+              "byte": 11,
+              "line": 1,
+              "column": 12
+            },
+            "end": {
+              "byte": 20,
+              "line": 1,
+              "column": 21
+            }
+          },
           "name": {
             "text": "Character"
           },
           "methods": [
             {
+              "span": {
+                "path": "test/idl/character.rs",
+                "start": {
+                  "byte": 106,
+                  "line": 8,
+                  "column": 12
+                },
+                "end": {
+                  "byte": 109,
+                  "line": 8,
+                  "column": 15
+                }
+              },
               "category": "Constructor",
               "name": {
                 "text": "new"
@@ -29,6 +55,19 @@
                 "is_async": "No",
                 "inputs": [
                   {
+                    "span": {
+                      "path": "test/idl/character.rs",
+                      "start": {
+                        "byte": 110,
+                        "line": 8,
+                        "column": 16
+                      },
+                      "end": {
+                        "byte": 114,
+                        "line": 8,
+                        "column": 20
+                      }
+                    },
                     "name": {
                       "text": "name"
                     },
@@ -50,6 +89,19 @@
                     }
                   },
                   {
+                    "span": {
+                      "path": "test/idl/character.rs",
+                      "start": {
+                        "byte": 122,
+                        "line": 8,
+                        "column": 28
+                      },
+                      "end": {
+                        "byte": 127,
+                        "line": 8,
+                        "column": 33
+                      }
+                    },
                     "name": {
                       "text": "class"
                     },
@@ -121,6 +173,19 @@
               }
             },
             {
+              "span": {
+                "path": "test/idl/character.rs",
+                "start": {
+                  "byte": 271,
+                  "line": 16,
+                  "column": 12
+                },
+                "end": {
+                  "byte": 276,
+                  "line": 16,
+                  "column": 17
+                }
+              },
               "category": {
                 "InstanceMethod": "ByRef"
               },
@@ -166,6 +231,19 @@
               }
             },
             {
+              "span": {
+                "path": "test/idl/character.rs",
+                "start": {
+                  "byte": 332,
+                  "line": 20,
+                  "column": 12
+                },
+                "end": {
+                  "byte": 336,
+                  "line": 20,
+                  "column": 16
+                }
+              },
               "category": {
                 "InstanceMethod": "ByRef"
               },
@@ -197,6 +275,19 @@
               }
             },
             {
+              "span": {
+                "path": "test/idl/character.rs",
+                "start": {
+                  "byte": 391,
+                  "line": 24,
+                  "column": 12
+                },
+                "end": {
+                  "byte": 399,
+                  "line": 24,
+                  "column": 20
+                }
+              },
               "category": {
                 "InstanceMethod": "ByRefMut"
               },
@@ -224,6 +315,19 @@
               }
             },
             {
+              "span": {
+                "path": "test/idl/character.rs",
+                "start": {
+                  "byte": 460,
+                  "line": 28,
+                  "column": 12
+                },
+                "end": {
+                  "byte": 465,
+                  "line": 28,
+                  "column": 17
+                }
+              },
               "category": {
                 "InstanceMethod": "ByRef"
               },
@@ -271,26 +375,91 @@
       },
       {
         "Enum": {
+          "span": {
+            "path": "test/idl/character.rs",
+            "start": {
+              "byte": 542,
+              "line": 34,
+              "column": 10
+            },
+            "end": {
+              "byte": 547,
+              "line": 34,
+              "column": 15
+            }
+          },
           "name": {
             "text": "Class"
           },
           "arms": [
             {
+              "span": {
+                "path": "test/idl/character.rs",
+                "start": {
+                  "byte": 554,
+                  "line": 35,
+                  "column": 5
+                },
+                "end": {
+                  "byte": 561,
+                  "line": 35,
+                  "column": 12
+                }
+              },
               "name": {
                 "text": "Fighter"
               }
             },
             {
+              "span": {
+                "path": "test/idl/character.rs",
+                "start": {
+                  "byte": 567,
+                  "line": 36,
+                  "column": 5
+                },
+                "end": {
+                  "byte": 573,
+                  "line": 36,
+                  "column": 11
+                }
+              },
               "name": {
                 "text": "Wizard"
               }
             },
             {
+              "span": {
+                "path": "test/idl/character.rs",
+                "start": {
+                  "byte": 579,
+                  "line": 37,
+                  "column": 5
+                },
+                "end": {
+                  "byte": 584,
+                  "line": 37,
+                  "column": 10
+                }
+              },
               "name": {
                 "text": "Rogue"
               }
             },
             {
+              "span": {
+                "path": "test/idl/character.rs",
+                "start": {
+                  "byte": 590,
+                  "line": 38,
+                  "column": 5
+                },
+                "end": {
+                  "byte": 596,
+                  "line": 38,
+                  "column": 11
+                }
+              },
               "name": {
                 "text": "Cleric"
               }
