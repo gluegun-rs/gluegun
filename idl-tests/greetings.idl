@@ -17,7 +17,7 @@
       {
         "Resource": {
           "span": {
-            "path": "test/idl/greetings.rs",
+            "path": "idl-tests/greetings.rs",
             "start": {
               "byte": 11,
               "line": 1,
@@ -35,7 +35,7 @@
           "methods": [
             {
               "span": {
-                "path": "test/idl/greetings.rs",
+                "path": "idl-tests/greetings.rs",
                 "start": {
                   "byte": 76,
                   "line": 6,
@@ -91,7 +91,7 @@
             },
             {
               "span": {
-                "path": "test/idl/greetings.rs",
+                "path": "idl-tests/greetings.rs",
                 "start": {
                   "byte": 175,
                   "line": 12,
@@ -114,7 +114,7 @@
                 "inputs": [
                   {
                     "span": {
-                      "path": "test/idl/greetings.rs",
+                      "path": "idl-tests/greetings.rs",
                       "start": {
                         "byte": 194,
                         "line": 12,
@@ -184,7 +184,7 @@
             },
             {
               "span": {
-                "path": "test/idl/greetings.rs",
+                "path": "idl-tests/greetings.rs",
                 "start": {
                   "byte": 297,
                   "line": 17,
@@ -207,7 +207,7 @@
                 "inputs": [
                   {
                     "span": {
-                      "path": "test/idl/greetings.rs",
+                      "path": "idl-tests/greetings.rs",
                       "start": {
                         "byte": 309,
                         "line": 17,

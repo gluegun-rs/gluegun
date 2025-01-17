@@ -17,7 +17,7 @@
       {
         "Function": {
           "span": {
-            "path": "test/idl/hello_world.rs",
+            "path": "idl-tests/hello_world.rs",
             "start": {
               "byte": 7,
               "line": 1,
