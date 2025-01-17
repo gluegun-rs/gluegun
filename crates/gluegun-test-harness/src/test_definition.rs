@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{process::Command, sync::Arc};
 
 use anyhow::Context;
 use camino::Utf8PathBuf;
@@ -7,6 +7,7 @@ use temp_dir::TempDir;
 
 pub struct Test {
     test_crate: Arc<String>,
+    source_directory: Utf8PathBuf,
     plugins: Arc<Vec<String>>,
     actions: Vec<TestAction>,
 }
@@ -28,10 +29,15 @@ pub enum TestAction {
 }
 
 impl Test {
-    pub fn new(test_crate: String, plugins: Vec<String>) -> Self {
+    pub fn new(
+        test_crate: impl ToString,
+        plugins: impl IntoIterator<Item: ToString>,
+        source_directory: impl Into<Utf8PathBuf>,
+    ) -> Self {
         Self {
-            test_crate: Arc::new(test_crate),
-            plugins: Arc::new(plugins),
+            test_crate: Arc::new(test_crate.to_string()),
+            source_directory: source_directory.into(),
+            plugins: Arc::new(plugins.into_iter().map(|t| t.to_string()).collect()),
             actions: vec![],
         }
     }
@@ -94,8 +100,8 @@ impl Test {
     }
 
     /// Execute the test from the given directory
-    pub fn execute(self, directory: Utf8PathBuf) -> anyhow::Result<()> {
-        TestExecutor::new(self, directory)?.execute()?;
+    pub fn execute(self) -> anyhow::Result<()> {
+        TestExecutor::new(self)?.execute()?;
         Ok(())
     }
 }
@@ -126,54 +132,76 @@ impl CommandBuilder {
 
 struct TestExecutor {
     test: Test,
-    temp_dir: TempDir,
-    source_directory: Utf8PathBuf,
+    temp_dir: Utf8PathBuf,
+    temp_dir_cleanup: Option<TempDir>,
 }
 
 impl TestExecutor {
-    fn new(test: Test, source_directory: Utf8PathBuf) -> anyhow::Result<Self> {
+    fn new(test: Test) -> anyhow::Result<Self> {
         let temp_dir = TempDir::new()?;
         Ok(Self {
             test,
-            temp_dir,
-            source_directory,
+            temp_dir: Utf8PathBuf::try_from(temp_dir.path().to_path_buf()).unwrap(),
+            temp_dir_cleanup: Some(temp_dir),
         })
     }
 
-    fn execute(&self) -> anyhow::Result<()> {
+    fn leak(&mut self) {
+        self.temp_dir_cleanup.take().map(|t| t.leak());
+    }
+
+    fn execute(mut self) -> anyhow::Result<()> {
         eprintln!(
             "# executing test {src} in {temp_dir}",
-            src = self.source_directory,
-            temp_dir = self.temp_dir.path().display(),
+            src = self.test.source_directory,
+            temp_dir = self.temp_dir,
         );
 
+        self.leak();
+
         // initialize temporary directory with contents of `directory`
-        CopyOptions::new().copy_tree(&self.source_directory, &self.temp_dir)?;
+        CopyOptions::new().copy_tree(&self.test.source_directory, &self.temp_dir)?;
 
         // test test actions
         for action in &self.test.actions {
-            self.execute_action(action).with_context(|| format!("executing action: {action:?}"))?;
+            self.execute_action(action)
+                .with_context(|| format!("executing action: {action:?}"))?;
         }
 
         Ok(())
     }
 
     fn execute_action(&self, action: &TestAction) -> anyhow::Result<()> {
+        eprintln!("## execute action {action:?}");
         match action {
             TestAction::Cargo { options } => self.cargo_action(options),
-        
+
             TestAction::Replace {
                 path,
                 find,
                 replace,
             } => self.replace_action(path, find, replace),
 
-            TestAction::CargoGluegun { options } => {
-                cargo_gluegun::cli_main_from(
-                    &self.temp_dir,
-                    options,
-                )
-            }
+            TestAction::CargoGluegun { options } => cargo_gluegun::Builder::new(
+                &self.temp_dir,
+                Some("cargo-gluegun")
+                    .into_iter()
+                    .chain(options.iter().map(|o| &o[..])),
+            )?
+            .plugin_command(|_workspace_metadata, _package_metadata, plugin| {
+                let manifest_path = std::env::var("CARGO_MANIFEST_PATH")
+                    .with_context(|| format!("fetching `CARGO_MANIFEST_PATH` variable"))?;
+                let mut c = Command::new("cargo");
+                c
+                    .arg("run")
+                    .arg("--manifest-path")
+                    .arg(manifest_path)
+                    .arg("-p")
+                    .arg(format!("gluegun-{plugin}"))
+                    .arg("--");
+                Ok(c)
+            })
+            .execute(),
         }
     }
 
@@ -189,7 +217,7 @@ impl TestExecutor {
     }
 
     fn replace_action(&self, path: &Utf8PathBuf, find: &str, replace: &str) -> anyhow::Result<()> {
-        let file_path = Utf8PathBuf::try_from(self.temp_dir.path().join(path))?;
+        let file_path = self.temp_dir.join(path);
 
         let content = std::fs::read_to_string(&file_path)?;
 

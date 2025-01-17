@@ -47,7 +47,10 @@ impl LibraryCrate {
     /// Generate the crate on disk. May fail.
     pub fn generate(mut self) -> anyhow::Result<()> {
         // FIXME: we shouldn't just delete the old thing
-        std::fs::remove_dir_all(&self.crate_path)?;
+        if self.crate_path.exists() {
+            std::fs::remove_dir_all(&self.crate_path).with_context(|| format!("removing {}", self.crate_path.display()))?;
+        }
+        
 
         self.execute()
             .with_context(|| format!("generating crate at path {}", self.crate_path.display()))
@@ -55,6 +58,7 @@ impl LibraryCrate {
 
     /// Internal method to generate code.
     fn execute(&mut self) -> anyhow::Result<()> {
+        eprintln!("cargo_command: {:?}", self.cargo_command);
         let status = self.cargo_command.status()?;
         if !status.success() {
             anyhow::bail!(
@@ -65,16 +69,20 @@ impl LibraryCrate {
         }
 
         for dependency in &self.dependencies {
+            eprintln!("adding {dependency:?}");
             dependency.execute_cargo_add()?;
         }
 
         for directory in &self.directories {
-            std::fs::create_dir_all(directory)
-                .with_context(|| format!("creating directory at `{}`", directory.display()))?;
+            let crate_directory = self.crate_path.join(directory);
+            eprintln!("creating {crate_directory:?}");
+            std::fs::create_dir_all(&crate_directory)
+                .with_context(|| format!("creating directory at `{}`", crate_directory.display()))?;
         }
 
         for (path, data) in &self.files {
             let file_path = self.crate_path.join(path);
+            eprintln!("writing to {file_path:?}");
 
             if let Some(dir_path) = file_path.parent() {
                 std::fs::create_dir_all(dir_path)

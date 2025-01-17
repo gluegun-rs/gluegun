@@ -130,6 +130,7 @@ enum DefinitionKind<'p> {
 
     /// *Modules* are public Rust modules; unlike the other variants, these are not mapped to output items,
     /// but they are used in name resolution.
+    #[expect(dead_code)]
     FileModule,
 }
 

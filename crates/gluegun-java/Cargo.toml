@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.95"
 gluegun-core = { version = "0.1.0", path = "../gluegun-core" }
+progress_bar = "1.0.6"

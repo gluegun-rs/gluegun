@@ -1,3 +1,4 @@
+use anyhow::Context;
 use gluegun_core::cli::{GenerateCx, GlueGunHelper};
 
 mod java_gen;
@@ -19,12 +20,16 @@ impl GlueGunHelper for GlueGunJava {
 
     fn generate(self, cx: &mut GenerateCx, &(): &()) -> anyhow::Result<()> {
         let mut lib = cx.create_library_crate();
-
         lib.add_dependency("duchess");
 
-        java_gen::JavaCodeGenerator::new(cx.idl()).generate(lib.add_dir("java_src")?)?;
-        rs_gen::RustCodeGenerator::new(cx.idl()).generate(lib.add_dir("src")?)?;
+        let java_src_dir = lib.add_dir("java_src").with_context(||format!("adding `java_src` dir"))?;
+        java_gen::JavaCodeGenerator::new(cx.idl()).generate(java_src_dir).with_context(|| format!("generaring Java sources"))?;
 
-        lib.generate()
+        let rs_src_dir = lib.add_dir("src").with_context(||format!("adding `java_src` dir"))?;
+        rs_gen::RustCodeGenerator::new(cx.idl()).generate(rs_src_dir).with_context(|| format!("generaring Rust sources"))?;
+
+        lib.generate().with_context(|| format!("emitting data to disk"))?;
+
+        Ok(())
     }
 }

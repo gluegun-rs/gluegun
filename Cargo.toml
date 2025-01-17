@@ -24,6 +24,7 @@ plugin_command = "cargo run -q -p gluegun-{plugin} --"
 
 [dev-dependencies]
 anyhow = "1.0.95"
+camino = "1.1.9"
 gluegun-test-harness = { path = "crates/gluegun-test-harness" }
 
 [dependencies]

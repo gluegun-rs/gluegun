@@ -344,6 +344,7 @@ name = "gluegun"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "camino",
  "gluegun-test-harness",
  "syn 2.0.96",
 ]
@@ -391,6 +392,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "gluegun-core",
+ "progress_bar",
 ]
 
 [[package]]
@@ -587,6 +589,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37d3544b3f2748c54e147655edb5025752e2303145b5aefb3c3ea2c78b973bb0"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "progress_bar"
+version = "1.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "990190dcd3c05bde8d044682f33cab9b194c44b1ea809b9d4e7457d48d24649d"
+dependencies = [
+ "lazy_static",
 ]
 
 [[package]]
