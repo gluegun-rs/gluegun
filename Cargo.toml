@@ -10,10 +10,6 @@ documentation = "https://gluegun.github.io/gluegun"
 [lib]
 proc-macro = true
 
-[[test]]
-name = "harness"
-harness = false
-
 [workspace]
 members = [
     "crates/cargo-gluegun",
