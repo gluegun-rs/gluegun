@@ -1,6 +1,7 @@
 use super::CodeWriter;
 use crate::cli::GlueGunDestinationCrate;
 use anyhow::Context;
+use serde::Deserialize;
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
@@ -26,7 +27,7 @@ impl LibraryCrate {
         let args = args.as_ref();
         let mut cargo_command = std::process::Command::new("cargo");
         cargo_command.arg("new");
-        cargo_command.arg("-q");
+        // cargo_command.arg("-q");
         cargo_command.arg("--lib");
         cargo_command.arg(&args.path);
 
@@ -48,9 +49,9 @@ impl LibraryCrate {
     pub fn generate(mut self) -> anyhow::Result<()> {
         // FIXME: we shouldn't just delete the old thing
         if self.crate_path.exists() {
-            std::fs::remove_dir_all(&self.crate_path).with_context(|| format!("removing {}", self.crate_path.display()))?;
+            std::fs::remove_dir_all(&self.crate_path)
+                .with_context(|| format!("removing {}", self.crate_path.display()))?;
         }
-        
 
         self.execute()
             .with_context(|| format!("generating crate at path {}", self.crate_path.display()))
@@ -58,6 +59,8 @@ impl LibraryCrate {
 
     /// Internal method to generate code.
     fn execute(&mut self) -> anyhow::Result<()> {
+        self.ensure_workspace()?;
+
         eprintln!("cargo_command: {:?}", self.cargo_command);
         let status = self.cargo_command.status()?;
         if !status.success() {
@@ -76,8 +79,9 @@ impl LibraryCrate {
         for directory in &self.directories {
             let crate_directory = self.crate_path.join(directory);
             eprintln!("creating {crate_directory:?}");
-            std::fs::create_dir_all(&crate_directory)
-                .with_context(|| format!("creating directory at `{}`", crate_directory.display()))?;
+            std::fs::create_dir_all(&crate_directory).with_context(|| {
+                format!("creating directory at `{}`", crate_directory.display())
+            })?;
         }
 
         for (path, data) in &self.files {
@@ -94,6 +98,49 @@ impl LibraryCrate {
         }
 
         Ok(())
+    }
+
+    /// Identifies the surrounding cargo.toml and ensures that it is setup to act as a workspace.
+    fn ensure_workspace(&self) -> anyhow::Result<()> {
+        let workspace_path = self.locate_workspace()?;
+
+        // Read the contents of the workspace cargo.toml
+        let contents = std::fs::read_to_string(&workspace_path)
+            .context("failed to read workspace cargo.toml")?;
+
+        // Check if [workspace] section exists
+        if !contents.contains("[workspace]") {
+            // Append [workspace] section if it doesn't exist
+            std::fs::write(&workspace_path, format!("{contents}\n\n[workspace]\n"))
+                .context("failed to update workspace cargo.toml")?;
+        }
+
+        Ok(())
+    }
+
+    fn locate_workspace(&self) -> anyhow::Result<PathBuf> {
+        #[derive(Deserialize)]
+        struct CargoLocateProjectOutput {
+            root: PathBuf,
+        }
+
+        let output = Command::new("cargo")
+            .args(["locate-project", "--workspace"])
+            .output()
+            .context("failed to execute cargo locate-project")?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            anyhow::bail!("cargo locate-project failed: {}", stderr);
+        }
+
+        let json = String::from_utf8(output.stdout)
+            .context("cargo locate-project output was not valid UTF-8")?;
+
+        let project_info: CargoLocateProjectOutput =
+            serde_json::from_str(&json).context("failed to parse cargo locate-project output")?;
+
+        Ok(project_info.root)
     }
 
     /// Add a dependency to the crate with the given name.
