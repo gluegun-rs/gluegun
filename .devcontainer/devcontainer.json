@@ -11,7 +11,8 @@
 	"image": "mcr.microsoft.com/devcontainers/rust:1-1-bullseye",
 	"features": {
 		"ghcr.io/eitsupi/devcontainer-features/mdbook:1": {},
-		"devwasm.azurecr.io/dev-wasm/dev-wasm-feature/wasmtime-wasi:0": {}
+		"devwasm.azurecr.io/dev-wasm/dev-wasm-feature/wasmtime-wasi:0": {},
+		"ghcr.io/jungaretti/features/ripgrep:1": {}
 	},
 
 	"customizations": {

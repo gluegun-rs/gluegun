@@ -14,19 +14,12 @@ proc-macro = true
 name = "harness"
 harness = false
 
-[dependencies]
-syn = "2.0"
-quote = "1.0"
-proc-macro2 = "1.0"
-duchess = "0.3.0"
-
-
 [workspace]
 members = [
     "crates/cargo-gluegun",
     "crates/gluegun-core", "crates/gluegun-dummy",
     "crates/gluegun-idl",
-    "crates/gluegun-java", 
+    "crates/gluegun-java", "crates/gluegun-test-harness", 
     "demos/hello_world",
 ]
 
@@ -35,9 +28,7 @@ plugin_command = "cargo run -q -p gluegun-{plugin} --"
 
 [dev-dependencies]
 anyhow = "1.0.95"
-lazy_static = "1.5.0"
-gluegun-idl = { path = "crates/gluegun-idl" }
-progress_bar = "1.0.6"
-serde_json = "1.0.135"
-similar = "2.6.0"
-walkdir = "2.5.0"
+gluegun-test-harness = { path = "crates/gluegun-test-harness" }
+
+[dependencies]
+syn = "2.0.96"

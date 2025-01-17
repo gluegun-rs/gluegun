@@ -1,3 +1,4 @@
+use std::ffi::OsString;
 use std::io::Write;
 use std::process::{ChildStdin, Command, ExitStatus, Stdio};
 
@@ -20,7 +21,14 @@ struct Cli {
 
 /// Main function for the gluegun CLI.
 pub fn cli_main() -> anyhow::Result<()> {
-    let cli = Cli::try_parse()?;
+    cli_main_from(std::env::args_os())
+}
+
+/// Execute GlueGun CLI with the given arguments.
+pub fn cli_main_from(
+    args: impl IntoIterator<Item = impl Into<OsString> + Clone>,
+) -> anyhow::Result<()> {
+    let cli = Cli::try_parse_from(args)?;
 
     let metadata = cli.manifest.metadata().exec()?;
     let (selected, _excluded) = cli.workspace.partition_packages(&metadata);
