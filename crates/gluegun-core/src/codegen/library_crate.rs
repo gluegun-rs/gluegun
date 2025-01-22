@@ -160,6 +160,7 @@ impl LibraryCrate {
                 version: None,
                 features: Default::default(),
                 no_default_features: Default::default(),
+                optional: Default::default(),
             },
         }
     }
@@ -257,6 +258,7 @@ struct Dependency {
     version: Option<String>,
     features: Vec<String>,
     no_default_features: bool,
+    optional: bool,
 }
 
 #[derive(Debug)]
@@ -266,37 +268,42 @@ enum DependencyKind {
 }
 
 impl Dependency {
-    fn execute_cargo_add(&self, crate_name: &str) -> anyhow::Result<()> {
+    fn execute_cargo_add(&self, to_crate_name: &str) -> anyhow::Result<()> {
+        let Self { crate_name, kind, path, version, features, no_default_features, optional } = self;
+
         let mut command = std::process::Command::new("cargo");
         command.arg("add");
 
         command.arg("-p");
-        command.arg(crate_name);
+        command.arg(to_crate_name);
 
-        if let Some(path) = &self.path {
+        if let Some(path) = &path {
             command.arg("--path").arg(path);
-        } else if let Some(version) = &self.version {
-            command.arg(&format!("{}@{}", self.crate_name, version));
+        } else if let Some(version) = &version {
+            command.arg(&format!("{}@{}", crate_name, version));
         } else {
             panic!("dependency `{crate_name}` needs either a path or a version");
         }
 
-        if !self.features.is_empty() {
+        if !features.is_empty() {
             command.arg("--features");
-            command.arg(self.features.join(","));
+            command.arg(features.join(","));
         }
 
-        if self.no_default_features {
+        if *no_default_features {
             command.arg("--no-default-features");
         }
 
-        if let Some(kind) = &self.kind {
+        if let Some(kind) = kind {
             match kind {
                 DependencyKind::Build => command.arg("--build"),
                 DependencyKind::Dev => command.arg("--dev"),
             };
         }
 
+        if *optional {
+            command.arg("--optional");
+        }
 
         let status = command.status()?;
         if !status.success() {
@@ -351,6 +358,12 @@ impl AddDependency<'_> {
     /// Version to request
     pub fn version(mut self, path: impl ToString) -> Self {
         self.dependency.version = Some(path.to_string());
+        self
+    }
+
+    /// Declare as optional with associated feature.
+    pub fn optional(mut self) -> Self {
+        self.dependency.optional = true;
         self
     }
 }
