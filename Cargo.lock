@@ -406,6 +406,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "gluegun-py"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "camino",
+ "gluegun-core",
+]
+
+[[package]]
 name = "gluegun-test-harness"
 version = "0.1.0"
 dependencies = [

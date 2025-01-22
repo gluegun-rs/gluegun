@@ -15,10 +15,14 @@ enum CliCommand {
 
 /// Main function from the binary
 pub fn bin_main() -> anyhow::Result<()> {
-    let java_class_files = util::make_java_class_files_directory()?;
+    let _java_class_files = util::make_java_class_files_directory()?;
     let cli = Cli::try_parse()?;
     match cli.command {
         CliCommand::Jar => {
+            // To start, build the artifact by running `cargo build`
+
+
+            // Then run `jar cf`
             
         }
     }

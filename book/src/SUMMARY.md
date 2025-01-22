@@ -1,6 +1,7 @@
 # Summary
 
 - [Intro](./intro.md)
+- [Design axioms](./axioms.md)
 - [Tutorial](./tutorial.md)
 - [Reference](./reference.md)
   - [Defining your public interface](./public-interface.md)
@@ -12,3 +13,4 @@
     - [C](./mapping/c.md)
     - [C++](./mapping/cpp.md)
 - [API](./api.md)
+- [Related work](./related_work.md)

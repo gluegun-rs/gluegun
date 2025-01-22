@@ -1,0 +1,9 @@
+[package]
+name = "gluegun-py"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.95"
+camino = "1.1.9"
+gluegun-core = { version = "0.1.0", path = "../gluegun-core" }

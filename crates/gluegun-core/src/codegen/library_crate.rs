@@ -20,10 +20,17 @@ pub struct LibraryCrate {
     #[accessors(get)]
     crate_path: PathBuf,
 
+    lib_configuration: TargetConfiguration,
+
     cargo_command: Command,
     dependencies: Vec<Dependency>,
     directories: Vec<PathBuf>,
     files: BTreeMap<PathBuf, Vec<u8>>,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum CrateType {
+    CDyLib,
 }
 
 impl LibraryCrate {
@@ -44,6 +51,11 @@ impl LibraryCrate {
             crate_name: args.crate_name.clone(),
             crate_path: args.path.clone(),
             cargo_command,
+            lib_configuration: TargetConfiguration {
+                crate_types: vec![CrateType::CDyLib],
+                name: None,
+                edition: None,
+            },
             directories: Default::default(),
             files: Default::default(),
             dependencies: Default::default(),
@@ -76,6 +88,9 @@ impl LibraryCrate {
             );
         }
 
+        let cargo_toml_path = self.crate_path.join("Cargo.toml");
+        self.lib_configuration.emit_target(&cargo_toml_path, "[lib]")?;
+
         for dependency in &self.dependencies {
             eprintln!("adding {dependency:?}");
             dependency.execute_cargo_add(&self.crate_name)?;
@@ -106,6 +121,7 @@ impl LibraryCrate {
     }
 
     /// Identifies the surrounding cargo.toml and ensures that it is setup to act as a workspace.
+    /// This is required for `cargo add` to act properly later on.
     fn ensure_workspace(&self) -> anyhow::Result<()> {
         let workspace_path = self.locate_workspace()?;
 
@@ -205,6 +221,37 @@ impl LibraryCrate {
     }
 }
 
+#[derive(Debug)]
+struct TargetConfiguration {
+    name: Option<String>,
+    crate_types: Vec<CrateType>,
+    edition: Option<String>,
+}
+
+pub struct TargetBuilder<'w> {
+    lib_configuration: &'w mut TargetConfiguration,
+}
+
+impl TargetBuilder<'_> {
+    /// Set the crate type list.
+    pub fn crate_types(self, crate_types: Vec<CrateType>) -> Self {
+        self.lib_configuration.crate_types = crate_types;
+        self
+    }
+
+    /// Customize crate name for this target.
+    pub fn name(self, name: String) -> Self {
+        self.lib_configuration.name = Some(name);
+        self
+    }
+
+    /// Customize edition for this target.
+    pub fn edition(self, e: String) -> Self {
+        self.lib_configuration.edition = Some(e);
+        self
+    }
+}
+
 pub struct DirBuilder<'w> {
     dir_path: PathBuf,
     krate: &'w mut LibraryCrate,
@@ -269,7 +316,15 @@ enum DependencyKind {
 
 impl Dependency {
     fn execute_cargo_add(&self, to_crate_name: &str) -> anyhow::Result<()> {
-        let Self { crate_name, kind, path, version, features, no_default_features, optional } = self;
+        let Self {
+            crate_name,
+            kind,
+            path,
+            version,
+            features,
+            no_default_features,
+            optional,
+        } = self;
 
         let mut command = std::process::Command::new("cargo");
         command.arg("add");
@@ -373,5 +428,36 @@ impl Drop for AddDependency<'_> {
         self.krate
             .dependencies
             .push(std::mem::replace(&mut self.dependency, Default::default()));
+    }
+}
+
+impl TargetConfiguration {
+    /// Generate the `[lib]` or other similar secton from `self`, appending it to the `Cargo.toml`
+    fn emit_target(&self, cargo_toml_path: &Path, target_name: &str) -> anyhow::Result<()> {
+        use std::fmt::Write;
+
+        let mut cargo_toml_text = std::fs::read_to_string(cargo_toml_path)
+            .with_context(|| format!("failed to read `{}`", cargo_toml_path.display()))?;
+
+        writeln!(cargo_toml_text)?;
+        writeln!(cargo_toml_text, r#"{target_name}"#)?;
+        if let Some(name) = &self.name {
+            writeln!(cargo_toml_text, r#"name = {name:?}"#)?;
+        }
+        writeln!(
+            cargo_toml_text,
+            "crate-type = [{}]",
+            self.crate_types.iter().map(|c| format!("{c:?}")).collect::<Vec<_>>().join(", ")
+        )?;
+        writeln!(
+            cargo_toml_text,
+            "edition = {:?}",
+            match &self.edition {
+                Some(edition) => edition,
+                None => "2021",
+            }
+        )?;
+
+        Ok(())
     }
 }
