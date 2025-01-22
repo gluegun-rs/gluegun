@@ -11,81 +11,60 @@
 
 GlueGun is highly configurable. The core GlueGun project includes several backends but it's easy to write your own -- or use backends written by others and published to crates.io.
 
-## Just write an idiomatic Rust API and let GlueGun do the rest
+## GlueGun in 30s
 
-Using GlueGun starts by writing an ordinary Rust library. GlueGun will scan the public interface of this library and attempt to identify generic patterns that can be ported across languages. As much as possible we try to have you document your intentions by using Rust idioms.
-
-For example, maybe you are building a core library for a role-playing game. You are going to export this library for a number of languages, including Java. You might start with a struct that represents a character:
+Imagine you have a `hello-world` Rust crate that you want to expose it to other languages:
 
 ```rust
-// rpg/src/lib.rs
-
-pub struct Character {
-    name: String,
-    level: u32,
-}
-
-impl Character {
-    // ...
+pub fn greet(name: String) -> String {
+    format!("Hello, {name}!")
 }
 ```
 
-A public struct with private fields is called a *resource* in GlueGun -- the names are taken from [WebAssembly Interface Types][WIT]. Resources map to classes in most languages. The methods on the class are taken from what appears in the Rust `impl` block:
+With GlueGun, you just run
 
-```rust
-pub struct Character { ... }
-
-impl Character {
-    pub fn new(name: impl AsRef<str>) -> Self {
-        let name: &str = name.as_ref();
-        Character {
-            name: name.to_string(),
-            level: 1,
-        }
-    }
-
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub fn level(&self) -> u32 {
-        self.level
-    }
-
-    pub fn level_up(&mut self) -> anyhow::Result<()> {
-        if self.level == 20 {
-            anyhow::bail!("character has reached maximum level");
-        }
-        self.level += 1;
-        Ok(())
-    }
-}
+```bash
+> cargo gluegun java
 ```
 
-You could then run `cargo gluegun python` to generate Python bindings for `Character`. This will define a Rust project using `pyo3` to create a Python class `Character` with the same methods. Rust idioms like `AsRef` are understood and translated appropriately; `Result` return types are translated into Python exceptions.
+to create a `hello-world-java` crate. You can then run
 
-```python
-class Character:
-    def __init__(name):
-        # invokes `Character::new` in Rust via native code
-
-    def name(self):
-        # invokes `Character::new` in Rust via native code
-
-    def level(self):
-        # invokes `Character::new` in Rust via native code
-
-    def level_up(self):
-        # invokes `Character::new` in Rust via native code
+```bash
+> cargo run -p hello-world-java -- jar
 ```
 
-Of course you can create more than Python. You could also do `cargo gluegun java` for Java code or `cargo gluegun cpp` for C++ code.
+and it will create a `target/hello-world.jar` file for you to distribute. Java users can then just run `hello_world.Functions.greet("Duke")`.
 
-To see a more complex example, check out the [tutorial](./tutorial.md).
+Java not enough for you? Try
 
-## Open-ended
+```bash
+> cargo gluegun python
+> carun run -p gluegun-py -- publish
+```
 
-GlueGun ships with many common languages built-in, but you can easily extend it just by adding a new executable.
-You can add languages to GlueGun simply by installing a new executable.
-When you run `cargo gluegun some_id`, it will search for `gluegun-some_id`, even installing it from crates.io if needed.
+and you will create a Python wrapper and publish it to PyPI. Pretty cool!
+
+## Any language you want, and then some
+
+GlueGun ships with support for these languages:
+
+* Java
+* Python
+* C
+* C++
+* JavaScript
+* Swift
+* Go
+
+but creating a new language binding is easy. Just create a 
+
+## But wait, there's more!
+
+GlueGun is designed to get you up and going as quickly as possible, but it's infinitely customizable. Perhaps you want to make a Java version that does things a bit different? Or you want to integrate with your internal build system at work? No problem at all.
+
+GlueGun is a kind of "meta project":
+
+* The core GlueGun parses your Rust code to extract the interface, represented in [Interface Definition Language](./idl.md).
+* It then invokes a separate executable to map that IDL to some other language:
+    * The GlueGun repository includes a number of languages, but you can make your own just by creating a new crate and uploading it to crates.io. No need to centrally coordinate.
 
