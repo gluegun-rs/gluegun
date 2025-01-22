@@ -11,7 +11,7 @@ use anyhow::Context;
 /// Adjust `CLASSPATH` and set the variable for rustc.
 ///
 /// Meant to be invoked from the `build.rs` of a gluegun-java-generated crate.
-pub fn main() -> anyhow::Result<()> {
+pub fn build_rs_main() -> anyhow::Result<()> {
     let java_class_files = make_java_class_files_directory()?;
     let new_classpath = init_classpath(&java_class_files);
     for java_path in java_files("java_src".as_ref()) {
@@ -76,4 +76,9 @@ fn compile_java(
         .with_context(|| format!("invoking `javac` on `{}`", java_path.display()))?;
 
     Ok(())
+}
+
+/// Main function from the binary
+pub fn bin_main() -> anyhow::Result<()> {
+    anyhow::bail!("TODO")
 }

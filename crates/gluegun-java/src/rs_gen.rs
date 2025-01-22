@@ -19,6 +19,13 @@ impl<'idl> RustCodeGenerator<'idl> {
     }
 
     pub(crate) fn generate(mut self, lib: &mut LibraryCrate) -> anyhow::Result<()> {
+        self.generate_lib_rs(lib);
+        self.generate_build_rs(lib)?;
+        self.generate_main_rs(lib);
+        Ok(())
+    }
+
+    fn generate_lib_rs(&mut self, lib: &mut LibraryCrate) -> anyhow::Result<()> {
         let mut lib_rs = lib.add_file("src/lib.rs")?;
 
         write!(lib_rs, "#![allow(non_snake_case)]")?; // FIXME: bug in duchess
@@ -28,22 +35,28 @@ impl<'idl> RustCodeGenerator<'idl> {
         for (qname, item) in self.idl.definitions() {
             self.generate_item(&mut lib_rs, qname, item)?;
         }
-        std::mem::drop(lib_rs);
-
-        let mut build_rs = lib.add_file("build.rs")?;
-        self.generate_build_rs(&mut build_rs)?;
-        std::mem::drop(build_rs);
 
         Ok(())
     }
 
-    fn generate_build_rs(&mut self, build_rs: &mut CodeWriter<'_>) -> anyhow::Result<()> {
+    fn generate_build_rs(&mut self, lib: &mut LibraryCrate) -> anyhow::Result<()> {
+        let mut build_rs = lib.add_file("build.rs")?;
         write!(
             build_rs,
-            "fn main() -> anyhow::Result<()> {{ gluegun_java_util::main() }}"
+            "fn main() -> anyhow::Result<()> {{ gluegun_java_util::build_rs_main() }}"
         )?;
         Ok(())
     }
+
+    fn generate_main_rs(&mut self, lib: &mut LibraryCrate) -> anyhow::Result<()> {
+        let mut main_rs = lib.add_file("src/main.rs")?;
+        write!(
+            main_rs,
+            "fn main() -> anyhow::Result<()> {{ gluegun_java_util::bin_main() }}"
+        )?;
+        Ok(())
+    }
+
 
     fn generate_java_classes(&self, lib_rs: &mut CodeWriter<'_>) -> anyhow::Result<()> {
         let mut map = BTreeMap::default();

@@ -2,7 +2,7 @@ use anyhow::Context;
 use camino::Utf8PathBuf;
 use gluegun_core::{
     cli::{GenerateCx, GlueGunHelper},
-    codegen::LibraryCrate,
+    codegen::{AddDependency, LibraryCrate},
 };
 
 mod java_gen;
@@ -24,8 +24,16 @@ impl GlueGunHelper for GlueGunJava {
 
     fn generate(self, cx: &mut GenerateCx, &(): &(), output: &mut LibraryCrate) -> anyhow::Result<()> {
         output.add_dependency(cx.idl().crate_name().text()).path(cx.idl().crate_path());
+
+        // libary dependencies
         output.add_dependency("duchess").version("0.3");
+
+        // build-rs dependencies
         output.add_dependency("anyhow").version("1").build();
+        self.add_gluegun_java_util(output)?.build();
+
+        // binary dependencies
+        output.add_dependency("anyhow").version("1");
         self.add_gluegun_java_util(output)?;
 
         let java_src_dir = output
@@ -44,7 +52,7 @@ impl GlueGunHelper for GlueGunJava {
 }
 
 impl GlueGunJava {
-    fn add_gluegun_java_util(&self, lib: &mut LibraryCrate) -> anyhow::Result<()> {
+    fn add_gluegun_java_util<'lib>(&self, lib: &'lib mut LibraryCrate) -> anyhow::Result<AddDependency<'lib>> {
         let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") else {
             anyhow::bail!("no CARGO_MANIFEST_DIR variable set")
         };
@@ -53,10 +61,7 @@ impl GlueGunJava {
         manifest_path.push("gluegun-java-util");
 
         // FIXME: we should eventually get this from crates.io, at least when not testing
-        lib.add_dependency("gluegun_java_util")
-            .build()
-            .path(manifest_path);
-
-        Ok(())
+        Ok(lib.add_dependency("gluegun-java-util")
+            .path(manifest_path))
     }
 }
