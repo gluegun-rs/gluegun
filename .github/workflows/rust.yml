@@ -16,7 +16,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+    - name: Build and run dev container task
+        uses: devcontainers/ci@v0.3
+        with:
+          runCmd: cargo build --verbose && cargo test --verbose
