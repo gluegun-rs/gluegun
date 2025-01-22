@@ -42,29 +42,22 @@ Java not enough for you? Try
 > carun run -p gluegun-py -- publish
 ```
 
-and you will create a Python wrapper and publish it to PyPI. Pretty cool!
-
-## Any language you want, and then some
-
-GlueGun ships with support for these languages:
-
-* Java
-* Python
-* C
-* C++
-* JavaScript
-* Swift
-* Go
-
-but creating a new language binding is easy. Just create a 
+and you will create a Python wrapper and publish it to PyPI. Pretty cool! Not enough for you? Gluegun ships with support for a bunch of languages.
 
 ## But wait, there's more!
 
 GlueGun is designed to get you up and going as quickly as possible, but it's infinitely customizable. Perhaps you want to make a Java version that does things a bit different? Or you want to integrate with your internal build system at work? No problem at all.
+
+GlueGun uses the same idiom as git and cargo to support extensibility. When you run `cargo gluegun foo`, gluegun will search for a `gluegun-foo` executable, installing one from crates.io if needed. This executable is tasked with creating the adapted cratebased on the [interface definition](./idl.md) that gluegun extracts from your Rust source.
 
 GlueGun is a kind of "meta project":
 
 * The core GlueGun parses your Rust code to extract the interface, represented in [Interface Definition Language](./idl.md).
 * It then invokes a separate executable to map that IDL to some other language:
     * The GlueGun repository includes a number of languages, but you can make your own just by creating a new crate and uploading it to crates.io. No need to centrally coordinate.
+
+## Interesting?
+
+* Read the [tutorial](./tutorial.md) or [reference](./reference.md)
+* Or, check out some of the [related work](./related_work.md)
 
