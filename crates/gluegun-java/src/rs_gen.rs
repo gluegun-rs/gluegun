@@ -19,9 +19,9 @@ impl<'idl> RustCodeGenerator<'idl> {
     }
 
     pub(crate) fn generate(mut self, lib: &mut LibraryCrate) -> anyhow::Result<()> {
-        self.generate_lib_rs(lib);
+        self.generate_lib_rs(lib)?;
         self.generate_build_rs(lib)?;
-        self.generate_main_rs(lib);
+        self.generate_main_rs(lib)?;
         Ok(())
     }
 
