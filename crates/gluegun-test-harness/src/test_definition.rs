@@ -47,7 +47,7 @@ impl Test {
         CommandBuilder {
             test: self,
             make_action: |options| TestAction::Cargo { options },
-            options: vec![command.to_string()],
+            options: vec!["--verbose".to_string(), command.to_string()],
         }
     }
 
