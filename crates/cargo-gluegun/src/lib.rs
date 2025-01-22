@@ -97,10 +97,11 @@ impl Builder {
 
         // FIXME: Don't be so hacky. My god Niko, you should be ashamed of yourself.
         let cargo_toml_path = &package.manifest_path;
-        let src_lib_rs = cargo_toml_path.parent().unwrap().join("src/lib.rs");
+        let manifest_dir = cargo_toml_path.parent().unwrap();
+        let src_lib_rs = manifest_dir.join("src/lib.rs");
 
         let idl = gluegun_idl::Parser::new()
-            .parse_crate_named(&package.name, &src_lib_rs)
+            .parse_crate_named(&package.name, &manifest_dir, &src_lib_rs)
             .with_context(|| format!("extracting interface from `{src_lib_rs}`"))?;
 
         // Search for `workspace.metadata.gluegun.tool_name` and

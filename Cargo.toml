@@ -15,7 +15,7 @@ members = [
     "crates/cargo-gluegun",
     "crates/gluegun-core", "crates/gluegun-dummy",
     "crates/gluegun-idl",
-    "crates/gluegun-java", "crates/gluegun-test-harness", 
+    "crates/gluegun-java", "crates/gluegun-java-util", "crates/gluegun-test-harness", 
     "demos/hello_world",
 ]
 

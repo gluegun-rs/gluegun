@@ -76,7 +76,7 @@ fn run_idl_test(test: &IdlTest) -> anyhow::Result<()> {
         )
     })?;
     let parsed_idl = gluegun_idl::Parser::new()
-        .parse_crate_named(crate_name, &test.rs_path)
+        .parse_crate_named(crate_name, &test.rs_path, &test.rs_path)
         .with_context(|| format!("failed to load `{}`", test.rs_path.display()))?;
     let idl_json = serde_json::to_string_pretty(&parsed_idl)
         .with_context(|| format!("failed to serialize json from `{}`", test.rs_path.display()))?;

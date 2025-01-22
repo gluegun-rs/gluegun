@@ -2,6 +2,7 @@
   "crate_name": {
     "text": "hello_world"
   },
+  "crate_path": "idl-tests/hello_world.rs",
   "definitions": [
     [
       {

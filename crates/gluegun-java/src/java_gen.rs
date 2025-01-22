@@ -227,8 +227,8 @@ impl<'idl> JavaCodeGenerator<'idl> {
         self.generate_function_inputs(file, signature.inputs())?;
         write!(file, ") {{")?;
         write!(file, "return {native_name}(")?;
-        for input in signature.inputs() {
-            write!(file, "{input_name},", input_name = input.name())?;
+        for (input, sep) in signature.inputs().iter().comma_separated() {
+            write!(file, "{input_name}{sep}", input_name = input.name())?;
         }
         write!(file, ");")?;
         write!(file, "}}")?;

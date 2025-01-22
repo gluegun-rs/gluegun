@@ -144,12 +144,14 @@ impl LibraryCrate {
 
     /// Add a dependency to the crate with the given name.
     /// Returns a builder that can be used to configure additional options.
-    pub fn add_dependency(&mut self, crate_name: &str, version: &str) -> AddDependency<'_> {
+    pub fn add_dependency(&mut self, crate_name: &str) -> AddDependency<'_> {
         AddDependency {
             krate: self,
             dependency: Dependency {
                 crate_name: crate_name.to_string(),
-                version: version.to_string(),
+                kind: None,
+                path: None,
+                version: None,
                 features: Default::default(),
                 no_default_features: Default::default(),
             },
@@ -244,9 +246,17 @@ impl Drop for LibraryFileWriter<'_> {
 #[derive(Debug, Default)]
 struct Dependency {
     crate_name: String,
-    version: String,
+    kind: Option<DependencyKind>,
+    path: Option<PathBuf>,
+    version: Option<String>,
     features: Vec<String>,
     no_default_features: bool,
+}
+
+#[derive(Debug)]
+enum DependencyKind {
+    Build,
+    Dev,
 }
 
 impl Dependency {
@@ -257,8 +267,14 @@ impl Dependency {
         command.arg("-p");
         command.arg(crate_name);
 
-        command.arg(&format!("{}@{}", self.crate_name, self.version));
-        
+        if let Some(path) = &self.path {
+            command.arg("--path").arg(path);
+        } else if let Some(version) = &self.version {
+            command.arg(&format!("{}@{}", self.crate_name, version));
+        } else {
+            panic!("dependency `{crate_name}` needs either a path or a version");
+        }
+
         if !self.features.is_empty() {
             command.arg("--features");
             command.arg(self.features.join(","));
@@ -267,6 +283,14 @@ impl Dependency {
         if self.no_default_features {
             command.arg("--no-default-features");
         }
+
+        if let Some(kind) = &self.kind {
+            match kind {
+                DependencyKind::Build => command.arg("--build"),
+                DependencyKind::Dev => command.arg("--dev"),
+            };
+        }
+
 
         let status = command.status()?;
         if !status.success() {
@@ -297,6 +321,30 @@ impl AddDependency<'_> {
     /// Add a required feature for the dependency
     pub fn no_default_features(mut self) -> Self {
         self.dependency.no_default_features = true;
+        self
+    }
+
+    /// Mark this as a build dependency
+    pub fn build(mut self) -> Self {
+        self.dependency.kind = Some(DependencyKind::Build);
+        self
+    }
+
+    /// Mark this as a dev dependency
+    pub fn dev(mut self) -> Self {
+        self.dependency.kind = Some(DependencyKind::Dev);
+        self
+    }
+
+    /// Mark this as a dev dependency
+    pub fn path(mut self, path: impl Into<PathBuf>) -> Self {
+        self.dependency.path = Some(path.into());
+        self
+    }
+
+    /// Version to request
+    pub fn version(mut self, path: impl ToString) -> Self {
+        self.dependency.version = Some(path.to_string());
         self
     }
 }

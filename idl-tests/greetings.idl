@@ -2,6 +2,7 @@
   "crate_name": {
     "text": "greetings"
   },
+  "crate_path": "idl-tests/greetings.rs",
   "definitions": [
     [
       {

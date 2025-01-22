@@ -2,6 +2,7 @@
   "crate_name": {
     "text": "character"
   },
+  "crate_path": "idl-tests/character.rs",
   "definitions": [
     [
       {

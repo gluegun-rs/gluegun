@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use std::{
     collections::BTreeMap,
-    ffi::{OsStr, OsString},
+    ffi::{OsStr, OsString}, path::PathBuf,
 };
 
 use crate::{Error, Span, Ty};
@@ -16,6 +16,9 @@ use crate::{Error, Span, Ty};
 pub struct Idl {
     /// The name of the crate whose API is being bound to some other language.
     pub(crate) crate_name: Name,
+
+    /// Path to the crate from which IDL was generated
+    pub(crate) crate_path: PathBuf,
 
     /// A list of definitions to be exported. Each of them will be located within the crate in question.
     #[serde_as(as = "Vec<(_, _)>")]

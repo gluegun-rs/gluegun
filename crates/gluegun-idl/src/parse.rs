@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::{Error, Idl, Name, QualifiedName, SourcePath};
 
@@ -12,21 +12,27 @@ impl Parser {
     }
 
     /// Parse the crate with the given name and the path to its `lib.rs`.
+    /// 
+    /// * `crate_name`, name of the crate in Rust code
+    /// * `cargo_path`, path to include in output as the path to the crate, normally the manifest dir
+    /// * ``
     pub fn parse_crate_named(
         &mut self,
         crate_name: impl Into<Name>,
-        crate_path: impl AsRef<Path>,
+        crate_path: impl Into<PathBuf>,
+        rs_path: impl AsRef<Path>,
     ) -> crate::Result<Idl> {
         let crate_name: Name = crate_name.into();
-        let crate_path: &Path = crate_path.as_ref();
+        let rs_path: &Path = rs_path.as_ref();
         let arena = AstArena::default();
-        let ast = arena.parse_file(crate_path)?;
+        let ast = arena.parse_file(rs_path)?;
         let crate_qname = QualifiedName::from(&crate_name);
-        let source = SourcePath::new(crate_path);
+        let source = SourcePath::new(rs_path);
         let recognized = pass1::Recognizer::new(&source, crate_qname, ast).into_recognized()?;
         let elaborated = pass2::Elaborator::new(recognized).into_elaborated_items()?;
         Ok(Idl {
             crate_name,
+            crate_path: crate_path.into(),
             definitions: elaborated,
         })
     }
@@ -36,7 +42,7 @@ impl Parser {
     pub fn parse_crate(&mut self, crate_path: impl AsRef<Path>) -> crate::Result<Idl> {
         let crate_path: &Path = crate_path.as_ref();
         let crate_name = extract_crate_name(crate_path)?;
-        self.parse_crate_named(crate_name, crate_path)
+        self.parse_crate_named(crate_name, crate_path, crate_path)
     }
 }
 
