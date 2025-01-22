@@ -1,10 +1,11 @@
- //! A "GlueGun CLI" is a Rust crate that creates the glue between the Rust code and
+//! A "GlueGun CLI" is a Rust crate that creates the glue between the Rust code and
 //! some other language. Most GlueGun CLI crates can use the Clap structs defined
 //! in this file.
 
 use std::path::PathBuf;
 
 use accessors_rs::Accessors;
+use anyhow::Context;
 use serde::{de::DeserializeOwned, Deserialize};
 
 use crate::{codegen::LibraryCrate, idl::Idl};
@@ -21,8 +22,20 @@ pub trait GlueGunHelper {
     /// Returns the helper name that users provide to invoke this, e.g., for `gluegun-java`, returns `"java"`.
     fn name(&self) -> String;
 
-    /// Generate a helper crate `dest_crate` given the `idl`
-    fn generate(self, cx: &mut GenerateCx, metadata: &Self::Metadata) -> anyhow::Result<()>;
+    /// Generate a helper crate `output` from the given `idl` and `metadata`
+    /// 
+    /// # Parameters
+    /// 
+    /// * `cx`, the input context 
+    /// * `metadata`, metadata provided by the user for your plugin (you control the type, see [`Self::Metadata`][])
+    /// * `output`, the [`LibraryCrate`][] you can use to configure the crate that will get generated (e.g., to add files
+    ///   with [`LibraryCrate::add_file`][] or dependencies with [`LibraryCrate::add_dependency`][]).
+    fn generate(
+        self,
+        cx: &mut GenerateCx,
+        metadata: &Self::Metadata,
+        output: &mut LibraryCrate,
+    ) -> anyhow::Result<()>;
 }
 
 /// The "main" function for a gluegun helper. Defines standard argument parsing.
@@ -47,11 +60,17 @@ where
     let input: GlueGunInput<G::Metadata> = serde_json::from_reader(stdin.lock())?;
 
     // Invoke the user's code
-    let mut cx = GenerateCx {
-        idl: input.idl,
-        dest_crate: input.dest_crate,
-    };
-    helper.generate(&mut cx, &input.metadata)
+    let mut cx = GenerateCx { idl: input.idl };
+    let mut output = LibraryCrate::from_args(&input.dest_crate);
+    helper.generate(&mut cx, &input.metadata, &mut output)?;
+
+    Ok(output.generate().with_context(|| {
+        format!(
+            "generating output crate `{}` at `{}`",
+            input.dest_crate.crate_name,
+            input.dest_crate.path.display()
+        )
+    })?)
 }
 
 /// These are the subcommands executed by our system.
@@ -69,30 +88,13 @@ struct GlueGunInput<M> {
 pub struct GenerateCx {
     /// The IDL from the source crate
     idl: Idl,
-
-    /// Informaton about the destination crate
-    dest_crate: GlueGunDestinationCrate,
-}
-
-impl GenerateCx {
-    /// Create a [`LibraryCrate`][] instance.
-    pub fn create_library_crate(&mut self) -> LibraryCrate {
-        LibraryCrate::from_args(&self.dest_crate)
-    }
-}
-
-impl AsRef<GlueGunDestinationCrate> for GlueGunDestinationCrate {
-    fn as_ref(&self) -> &GlueGunDestinationCrate {
-        self
-    }
 }
 
 /// The arguments that identify where the crate should be generated.
 /// You don't normally need to inspect the fields of this struct,
 /// instead just invoke [`LibraryCrate::from_args`](`crate::codegen::LibraryCrate::from_args`).
 #[derive(Deserialize, Debug)]
-#[non_exhaustive]
-pub struct GlueGunDestinationCrate {
+pub(crate) struct GlueGunDestinationCrate {
     /// Path at which to create the crate
     pub path: PathBuf,
 

@@ -1,4 +1,4 @@
-use gluegun_core::cli::{GenerateCx, GlueGunHelper};
+use gluegun_core::{cli::{GenerateCx, GlueGunHelper}, codegen::LibraryCrate};
 
 pub fn main() -> anyhow::Result<()> {
     gluegun_core::cli::run(GlueGunDummy)
@@ -13,10 +13,21 @@ impl GlueGunHelper for GlueGunDummy {
         "dummy".to_string()
     }
 
-    fn generate(self, cx: &mut GenerateCx, metadata: &Self::Metadata) -> anyhow::Result<()> {
-        eprintln!("gluegun-dummy: dest_crate = {:#?}", cx.dest_crate());
-        eprintln!("gluegun-dummy: metadata = {:#?}", metadata);
-        eprintln!("gluegun-dummy: idl = {:#?}", cx.idl());
+    fn generate(self, cx: &mut GenerateCx, metadata: &Self::Metadata, output: &mut LibraryCrate) -> anyhow::Result<()> {
+        let mut f = output.add_file("README.md")?;
+        write!(f, "# Dummy GlueGun crate generator")?;
+        write!(f, "")?;
+        write!(f, "This demo just exists to show you how to implement a generator.")?;
+        write!(f, "")?;
+        write!(f, "## Input metadata")?;
+        write!(f, "```")?;
+        write!(f, "metadata = {:#?}", metadata)?;
+        write!(f, "```")?;
+        write!(f, "")?;
+        write!(f, "## Input IDL")?;
+        write!(f, "```")?;
+        write!(f, "idl = {:#?}", cx.idl())?;
+        write!(f, "```")?;
         Ok(())
     }
 }

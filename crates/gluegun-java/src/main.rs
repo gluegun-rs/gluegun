@@ -22,14 +22,13 @@ impl GlueGunHelper for GlueGunJava {
         "java".to_string()
     }
 
-    fn generate(self, cx: &mut GenerateCx, &(): &()) -> anyhow::Result<()> {
-        let mut lib = cx.create_library_crate();
-        lib.add_dependency(cx.idl().crate_name().text()).path(cx.idl().crate_path());
-        lib.add_dependency("duchess").version("0.3");
-        lib.add_dependency("anyhow").version("1").build();
-        self.add_gluegun_java_util(&mut lib)?;
+    fn generate(self, cx: &mut GenerateCx, &(): &(), output: &mut LibraryCrate) -> anyhow::Result<()> {
+        output.add_dependency(cx.idl().crate_name().text()).path(cx.idl().crate_path());
+        output.add_dependency("duchess").version("0.3");
+        output.add_dependency("anyhow").version("1").build();
+        self.add_gluegun_java_util(output)?;
 
-        let java_src_dir = lib
+        let java_src_dir = output
             .add_dir("java_src")
             .with_context(|| format!("adding `java_src` dir"))?;
         java_gen::JavaCodeGenerator::new(cx.idl())
@@ -37,11 +36,8 @@ impl GlueGunHelper for GlueGunJava {
             .with_context(|| format!("generaring Java sources"))?;
 
         rs_gen::RustCodeGenerator::new(cx.idl())
-            .generate(&mut lib)
+            .generate(output)
             .with_context(|| format!("generaring Rust sources"))?;
-
-        lib.generate()
-            .with_context(|| format!("emitting data to disk"))?;
 
         Ok(())
     }

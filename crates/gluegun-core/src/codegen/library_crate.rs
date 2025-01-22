@@ -1,5 +1,6 @@
 use super::CodeWriter;
 use crate::cli::GlueGunDestinationCrate;
+use accessors_rs::Accessors;
 use anyhow::Context;
 use serde::Deserialize;
 use std::{
@@ -9,10 +10,16 @@ use std::{
 };
 
 /// Type to create a GlueGun adapter crate.
-#[derive(Debug)]
+#[derive(Debug, Accessors)]
 pub struct LibraryCrate {
+    /// The Rust name of the crate being generated (may include e.g., `-`)
+    #[accessors(get)]
     crate_name: String,
+
+    /// The path where the crate will be generated (directory name)
+    #[accessors(get)]
     crate_path: PathBuf,
+
     cargo_command: Command,
     dependencies: Vec<Dependency>,
     directories: Vec<PathBuf>,
@@ -24,8 +31,7 @@ impl LibraryCrate {
     /// This has no immediate effect.
     /// You can use the various methods on this returned value to configure files that should be present.
     /// Once everything is ready, you can invoke [`Self::execute`][] to make changes on disk.
-    pub fn from_args(args: impl AsRef<GlueGunDestinationCrate>) -> Self {
-        let args = args.as_ref();
+    pub(crate) fn from_args(args: &GlueGunDestinationCrate) -> Self {
         let mut cargo_command = std::process::Command::new("cargo");
         cargo_command.arg("new");
         // cargo_command.arg("-q");

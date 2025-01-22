@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use gluegun_core::{
     codegen::{CodeWriter, LibraryCrate},
     idl::{
-        Enum, FunctionInput, FunctionOutput, Idl, Item, Method, MethodCategory, Name, QualifiedName, Record, Resource, RustRepr, RustReprKind, Signature, Ty, TypeKind, Variant
+        Enum, FunctionInput, FunctionOutput, Idl, Item, Method, MethodCategory, Name, QualifiedName, Record, Resource, RustReprKind, Signature, Ty, TypeKind, Variant
     },
 };
 
@@ -22,7 +22,7 @@ impl<'idl> RustCodeGenerator<'idl> {
         let mut lib_rs = lib.add_file("src/lib.rs")?;
 
         write!(lib_rs, "#![allow(non_snake_case)]")?; // FIXME: bug in duchess
-        
+
         self.generate_java_classes(&mut lib_rs)?;
 
         for (qname, item) in self.idl.definitions() {
