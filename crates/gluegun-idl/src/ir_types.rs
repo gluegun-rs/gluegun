@@ -46,10 +46,19 @@ impl Ty {
         Ty::new(
             span,
             TypeKind::UserType {
-                qname: qname.clone(),
-                repr: UserTypeRepr::Owned,
+                qname: qname.clone()
             },
         )
+    }
+
+    /// Create a [`RefdTy`][] with reference kind `kind`.
+    pub fn refd(self, kind: RefKind) -> RefdTy {
+        RefdTy::Ref(kind, self)
+    }
+
+    /// Create a [`RefdTy`][] for a type that is owned, not referenced
+    pub fn not_refd(self) -> RefdTy {
+        RefdTy::Owned(self)
     }
 }
 
@@ -78,7 +87,7 @@ impl std::fmt::Display for Ty {
             TypeKind::Scalar(s) => write!(f, "{}", s),
             TypeKind::Future { output, repr: _ } => write!(f, "impl Future<Output = {}>", output),
             TypeKind::Error { repr: _ } => write!(f, "Error"),
-            TypeKind::UserType { qname, repr: _ } => write!(f, "{}", qname.to_string("::")),
+            TypeKind::UserType { qname  } => write!(f, "{}", qname.to_string("::")),
         }
     }
 }
@@ -134,9 +143,19 @@ pub enum TypeKind {
     /// Type defined by the user
     UserType {
         qname: QualifiedName,
-
-        repr: UserTypeRepr,
     },
+}
+
+impl TypeKind {
+    /// Create a [`RefdTy`][] with reference kind `kind`.
+    pub fn refd(self, span: Span, kind: RefKind) -> RefdTy {
+        Ty::new(span, self).refd(kind)
+    }
+
+    /// Create a [`RefdTy`][] for a type that is owned, not referenced
+    pub fn not_refd(self, span: Span) -> RefdTy {
+        Ty::new(span, self).not_refd()
+    }
 }
 
 impl std::fmt::Display for TypeKind {
@@ -164,7 +183,7 @@ impl std::fmt::Display for TypeKind {
             TypeKind::Scalar(scalar) => write!(f, "{}", scalar)?,
             TypeKind::Future { output, repr: _ } => write!(f, "impl Future<Output = {}>", output)?,
             TypeKind::Error { repr: _ } => write!(f, "Error")?,
-            TypeKind::UserType { qname, repr: _ } => write!(f, "{}", qname.to_string("::"))?,
+            TypeKind::UserType { qname } => write!(f, "{}", qname.to_string("::"))?,
         }
         Ok(())
     }
@@ -177,8 +196,8 @@ pub enum StringRepr {
     /// String
     String,
 
-    /// &str
-    Str(RefKind),
+    /// `&str` (precise kind of reference will be captured elsewhere)
+    StrRef,
     
     /// impl ToString
     ImplToString,
@@ -191,34 +210,27 @@ pub enum VecRepr {
     /// Vec
     Vec,
 
-    /// [T]
-    Slice(RefKind),
+    /// `&[T]` (of some kind)
+    SliceRef,
 }
 
 /// Different patterns that we recognize as being a "Map" in Rust code.
 #[non_exhaustive]
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 pub enum MapSetRepr {
-    Owned(MapVariant),
-
-    Ref(MapVariant, RefKind),
-}
-
-#[non_exhaustive]
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
-pub enum MapVariant {
     Hash,
     BTree,
     Index,
 }
+
 /// Different patterns that we recognize as being a "Path" in Rust code.
 #[non_exhaustive]
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 pub enum PathRepr {
-    /// Path,
-    Path(RefKind),
+    /// `&Path`
+    PathRef,
 
-    /// PathBuf
+    /// `PathBuf``
     PathBuf,
 }
 
@@ -226,7 +238,7 @@ pub enum PathRepr {
 #[non_exhaustive]
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 pub enum OptionRepr {
-    /// Option<E>
+    /// `Option<E>`
     Option,
 }
 
@@ -234,7 +246,7 @@ pub enum OptionRepr {
 #[non_exhaustive]
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 pub enum ResultRepr {
-    /// Result<E>
+    /// `Result<T, E>`
     Result,
 }
 
@@ -275,28 +287,6 @@ pub struct AutoTraits {
     send: bool,
     sync: bool,
     unpin: bool,
-}
-
-/// Kinds of references that can be provided
-#[non_exhaustive]
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
-pub enum RefKind {
-    /// `&T``
-    AnonRef,
-
-    /// `impl AsRef<T>`
-    ImplAsRef,
-}
-
-/// Kinds of references that can be provided
-#[non_exhaustive]
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
-pub enum UserTypeRepr {
-    /// `T``
-    Owned,
-
-    /// `&T`
-    Ref(RefKind),
 }
 
 /// Recognized scalar types.
@@ -344,3 +334,48 @@ impl std::fmt::Display for Scalar {
     }
 }
 
+/// A potentially referenced type. These can only appear at the outermost levels.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum RefdTy {
+    /// `T`, owned value
+    Owned(Ty),
+
+    /// Something created from a `&T`
+    Ref(RefKind, Ty),
+}
+
+impl RefdTy {
+    pub fn ty(&self) -> &Ty {
+        match self {
+            RefdTy::Owned(ty) => ty,
+            RefdTy::Ref(_, ty) => ty,
+        }
+    }
+}
+
+impl From<Ty> for RefdTy {
+    fn from(value: Ty) -> Self {
+        RefdTy::Owned(value)
+    }
+}
+
+impl std::fmt::Display for RefdTy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RefdTy::Owned(ty) => write!(f, "{}", ty),
+            RefdTy::Ref(RefKind::AnonRef, ty) => write!(f, "&{}", ty),
+            RefdTy::Ref(RefKind::ImplAsRef, ty) => write!(f, "impl AsRef<{}>", ty),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum RefKind {
+    /// `&T` with no specified lifetime
+    AnonRef,
+
+    /// `impl AsRef<T>`
+    ImplAsRef,
+}

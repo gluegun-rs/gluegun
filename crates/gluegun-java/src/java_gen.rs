@@ -245,7 +245,7 @@ impl<'idl> JavaCodeGenerator<'idl> {
             write!(
                 file,
                 "{ty} {name}{sep}",
-                ty = self.write_ty(input.ty())?,
+                ty = self.write_ty(input.refd_ty().ty())?,
                 name = input.name()
             )?;
         }
@@ -338,7 +338,7 @@ impl<'idl> JavaCodeGenerator<'idl> {
                 V = self.write_objectified_ty(output)?
             )),
             TypeKind::Error { repr: _} => todo!(),
-            TypeKind::UserType { qname, repr: _ } => Ok(util::class_dot_name(qname)),
+            TypeKind::UserType { qname } => Ok(util::class_dot_name(qname)),
             _ => anyhow::bail!("unsupported type: `{ty}`"),
         }
     }

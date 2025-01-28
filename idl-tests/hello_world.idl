@@ -38,14 +38,22 @@
             "inputs": [],
             "output_ty": {
               "main_ty": {
-                "kind": "String",
-                "rust_repr": {
-                  "kind": {
-                    "Named": [
-                      "String",
-                      [],
-                      {}
-                    ]
+                "span": {
+                  "path": "idl-tests/hello_world.rs",
+                  "start": {
+                    "byte": 24,
+                    "line": 1,
+                    "column": 25
+                  },
+                  "end": {
+                    "byte": 30,
+                    "line": 1,
+                    "column": 31
+                  }
+                },
+                "kind": {
+                  "String": {
+                    "repr": "String"
                   }
                 }
               },

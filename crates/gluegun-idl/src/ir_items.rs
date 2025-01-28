@@ -8,7 +8,7 @@ use std::{
     ffi::{OsStr, OsString}, path::PathBuf,
 };
 
-use crate::{Error, Span, Ty};
+use crate::{Error, RefdTy, Span, Ty};
 
 #[serde_as]
 #[derive(Accessors, Clone, Debug, Serialize, Deserialize)]
@@ -434,7 +434,7 @@ pub struct FunctionInput {
     pub(crate) name: Name,
 
     /// Type of the function parameter.
-    pub(crate) ty: Ty,
+    pub(crate) refd_ty: RefdTy,
 }
 
 /// Function return type. This includes a "main" return type

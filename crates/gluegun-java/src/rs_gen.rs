@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use gluegun_core::{
     codegen::{CodeWriter, LibraryCrate},
     idl::{
-        Enum, FunctionInput, FunctionOutput, Idl, Item, Method, MethodCategory, Name, QualifiedName, Record, Resource, Signature, Ty, TypeKind, Variant
+        Enum, FunctionInput, FunctionOutput, Idl, Item, Method, MethodCategory, Name, QualifiedName, Record, RefdTy, Resource, Signature, Ty, TypeKind, Variant
     },
 };
 
@@ -230,7 +230,7 @@ impl<'idl> RustCodeGenerator<'idl> {
 
         for input in signature.inputs() {
             let name = input.name();
-            let ty = input.ty();
+            let ty = input.refd_ty().ty();
             write!(lib_rs, "{name}: {ty},", ty = self.java_parameter_ty(ty)?)?;
         }
 
@@ -297,7 +297,7 @@ impl<'idl> RustCodeGenerator<'idl> {
             TypeKind::Error { repr: _ } => {
                 Ok(format!("&duchess::java::lang::Exception"))
             }
-            TypeKind::UserType { qname: _, repr: _ } => {
+            TypeKind::UserType { qname: _ } => {
                 anyhow::bail!("user types not supported currently")
             }
             _ => todo!(),
@@ -349,7 +349,7 @@ impl<'idl> RustCodeGenerator<'idl> {
             TypeKind::Scalar(scalar) => scalar.to_string(),
             TypeKind::Future { output: _, repr: _ } => todo!(),
             TypeKind::Error { repr: _ } => format!("anyhow::Error"),
-            TypeKind::UserType { qname, repr: _ } => qname.colon_colon(),
+            TypeKind::UserType { qname } => qname.colon_colon(),
             _ => todo!(),
         }
     }
@@ -369,11 +369,10 @@ impl<'idl> RustCodeGenerator<'idl> {
     ) -> anyhow::Result<()> {
         for input in signature.inputs() {
             let name = input.name();
-            let ty = input.ty();
             write!(
                 lib_rs, 
                 "let {name}: {ty} = duchess::JvmOp::execute({name})?;",
-                ty = self.rust_owned_ty(ty),
+                ty = self.rust_owned_ty(input.refd_ty().ty()),
             )?;
         }
 
@@ -398,7 +397,11 @@ impl<'idl> RustCodeGenerator<'idl> {
         input: &FunctionInput,
     ) -> anyhow::Result<()> {
         let name = input.name();
-        write!(lib_rs, "{name},")?;
+        match input.refd_ty() {
+            RefdTy::Owned(_) => write!(lib_rs, "{name},")?,
+            RefdTy::Ref(..) => write!(lib_rs, "&{name},")?,
+            _ => anyhow::bail!("{}: unsupported refd_ty: {:?}", input.span(), input)
+        }
         Ok(())
     }
 }

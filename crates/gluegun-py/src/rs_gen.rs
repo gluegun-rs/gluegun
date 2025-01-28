@@ -118,73 +118,74 @@ impl<'idl> RustCodeGenerator<'idl> {
     /// 
     /// * Where possible, use the same type for the pyo3 argument as the Rust code wants.
     /// * Otherwise, use a generic pyo3 argument and some form of interconversion.
-    fn rust_argument_ty(&mut self, input: &FunctionInput) -> anyhow::Result<(String, IsRef)> {
-        match input.ty().kind() {
-            TypeKind::Map { key, value, repr: MapSetRepr::Owned(v) } => {
-                let name = self.map_name(v);
-                Ok((format!("{name}<{}, {}>", self.generic_ty(key)?, self.generic_ty(value)?), IsRef::No))
+    fn rust_argument_ty(&mut self, input: &FunctionInput) -> anyhow::Result<String> {
+        let input_ty = input.refd_ty().ty();
+        match input_ty.kind() {
+            TypeKind::Map { key, value, repr } => {
+                let name = self.map_name(repr);
+                Ok(format!("{name}<{}, {}>", self.generic_ty(key)?, self.generic_ty(value)?))
             }
 
-            TypeKind::Set { element, repr: MapSetRepr::Owned(v) } => {
-                let name = self.map_name(v);
-                Ok((format!("{name}<{}>", self.generic_ty(element)?), IsRef::No))
+            TypeKind::Set { element, repr } => {
+                let name = self.map_name(repr);
+                Ok(format!("{name}<{}>", self.generic_ty(element)?))
             }
 
             TypeKind::Vec { element, repr: VecRepr::Vec } => {
-                Ok((format!("Vec<{}>", self.generic_ty(element)?), IsRef::No))
+                Ok(format!("Vec<{}>", self.generic_ty(element)?))
             }
 
-            TypeKind::Vec { element, repr: VecRepr::Slice(_) } => {
-                Ok((format!("Vec<{}>", self.generic_ty(element)?), IsRef::Yes))
+            TypeKind::Vec { element, repr: VecRepr::SliceRef } => {
+                Ok(format!("Vec<{}>", self.generic_ty(element)?),)
             }
             
             TypeKind::Path { repr: PathRepr::PathBuf } => {
-                Ok((format!("PathBuf"), IsRef::No))
+                Ok(format!("PathBuf"))
             }
 
-            TypeKind::Path { repr: PathRepr::Path(_) } => {
-                Ok((format!("&Path"), IsRef::Yes))
+            TypeKind::Path { repr: PathRepr::PathRef } => {
+                Ok(format!("&Path"),)
             }
 
             TypeKind::String { repr: StringRepr::String } => {
-                Ok((format!("String"), IsRef::No))
+                Ok(format!("String"))
             }
 
-            TypeKind::String { repr: StringRepr::Str(_) } => {
-                Ok((format!("&str"), IsRef::Yes))
+            TypeKind::String { repr: StringRepr::StrRef } => {
+                Ok(format!("&str"),)
             }
 
             TypeKind::Option { element, repr: OptionRepr::Option } => {
-                Ok((format!("Option<{}>", self.generic_ty(element)?), IsRef::No))
+                Ok(format!("Option<{}>", self.generic_ty(element)?))
             }
 
             TypeKind::Result { ok, err, repr: ResultRepr::Result } => {
-                Ok((format!("Result<{}, {}>", self.generic_ty(ok)?, self.generic_ty(err)?), IsRef::No))
+                Ok(format!("Result<{}, {}>", self.generic_ty(ok)?, self.generic_ty(err)?))
             }
 
             TypeKind::Tuple { .. } => {
-                Ok((self.generic_ty(input.ty())?, IsRef::No))
+                Ok(self.generic_ty(input_ty)?)
             }
 
-            TypeKind::Scalar(scalar) => Ok((scalar.to_string(), IsRef::No)),
+            TypeKind::Scalar(scalar) => Ok(scalar.to_string()),
 
             TypeKind::Future { .. } => {
-                Ok((self.generic_ty(input.ty())?, IsRef::No))
+                Ok(self.generic_ty(input_ty)?)
             }
 
             TypeKind::Error { .. } => {
-                Ok((self.generic_ty(input.ty())?, IsRef::No))
+                Ok(self.generic_ty(input_ty)?)
             }
 
             TypeKind::UserType { .. } => {
-                Ok((self.generic_ty(input.ty())?, IsRef::No))
+                Ok(self.generic_ty(input_ty)?)
             }
 
             _ => anyhow::bail!(
                 "{span}: unsupported type for `{name}`: {ty} (`{ty:?}`)",
                 span = input.span(),
                 name = input.name(),
-                ty = input.ty().kind(),
+                ty = input_ty,
             ),
         }
     }

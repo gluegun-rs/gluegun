@@ -57,23 +57,22 @@
                 "inputs": [],
                 "output_ty": {
                   "main_ty": {
+                    "span": {
+                      "path": "idl-tests/greetings.rs",
+                      "start": {
+                        "byte": 11,
+                        "line": 1,
+                        "column": 12
+                      },
+                      "end": {
+                        "byte": 20,
+                        "line": 1,
+                        "column": 21
+                      }
+                    },
                     "kind": {
                       "UserType": {
                         "qname": {
-                          "names": [
-                            {
-                              "text": "greetings"
-                            },
-                            {
-                              "text": "Greetings"
-                            }
-                          ]
-                        }
-                      }
-                    },
-                    "rust_repr": {
-                      "kind": {
-                        "User": {
                           "names": [
                             {
                               "text": "greetings"
@@ -130,43 +129,51 @@
                     "name": {
                       "text": "language"
                     },
-                    "ty": {
-                      "kind": "String",
-                      "rust_repr": {
-                        "kind": {
-                          "Ref": {
-                            "kind": {
-                              "Named": [
-                                "Str",
-                                [],
-                                {}
-                              ]
+                    "refd_ty": {
+                      "Ref": [
+                        "AnonRef",
+                        {
+                          "span": {
+                            "path": "idl-tests/greetings.rs",
+                            "start": {
+                              "byte": 205,
+                              "line": 12,
+                              "column": 42
+                            },
+                            "end": {
+                              "byte": 208,
+                              "line": 12,
+                              "column": 45
+                            }
+                          },
+                          "kind": {
+                            "String": {
+                              "repr": "StrRef"
                             }
                           }
                         }
-                      }
+                      ]
                     }
                   }
                 ],
                 "output_ty": {
                   "main_ty": {
+                    "span": {
+                      "path": "idl-tests/greetings.rs",
+                      "start": {
+                        "byte": 11,
+                        "line": 1,
+                        "column": 12
+                      },
+                      "end": {
+                        "byte": 20,
+                        "line": 1,
+                        "column": 21
+                      }
+                    },
                     "kind": {
                       "UserType": {
                         "qname": {
-                          "names": [
-                            {
-                              "text": "greetings"
-                            },
-                            {
-                              "text": "Greetings"
-                            }
-                          ]
-                        }
-                      }
-                    },
-                    "rust_repr": {
-                      "kind": {
-                        "User": {
                           "names": [
                             {
                               "text": "greetings"
@@ -223,15 +230,25 @@
                     "name": {
                       "text": "name"
                     },
-                    "ty": {
-                      "kind": "String",
-                      "rust_repr": {
+                    "refd_ty": {
+                      "Owned": {
+                        "span": {
+                          "path": "idl-tests/greetings.rs",
+                          "start": {
+                            "byte": 315,
+                            "line": 17,
+                            "column": 30
+                          },
+                          "end": {
+                            "byte": 321,
+                            "line": 17,
+                            "column": 36
+                          }
+                        },
                         "kind": {
-                          "Named": [
-                            "String",
-                            [],
-                            {}
-                          ]
+                          "String": {
+                            "repr": "String"
+                          }
                         }
                       }
                     }
@@ -239,26 +256,42 @@
                 ],
                 "output_ty": {
                   "main_ty": {
-                    "kind": "String",
-                    "rust_repr": {
-                      "kind": {
-                        "Named": [
-                          "String",
-                          [],
-                          {}
-                        ]
+                    "span": {
+                      "path": "idl-tests/greetings.rs",
+                      "start": {
+                        "byte": 341,
+                        "line": 17,
+                        "column": 56
+                      },
+                      "end": {
+                        "byte": 347,
+                        "line": 17,
+                        "column": 62
+                      }
+                    },
+                    "kind": {
+                      "String": {
+                        "repr": "String"
                       }
                     }
                   },
                   "error_ty": {
-                    "kind": "Error",
-                    "rust_repr": {
-                      "kind": {
-                        "Named": [
-                          "AnyhowError",
-                          [],
-                          {}
-                        ]
+                    "span": {
+                      "path": "idl-tests/greetings.rs",
+                      "start": {
+                        "byte": 326,
+                        "line": 17,
+                        "column": 41
+                      },
+                      "end": {
+                        "byte": 348,
+                        "line": 17,
+                        "column": 63
+                      }
+                    },
+                    "kind": {
+                      "Error": {
+                        "repr": "AnyhowError"
                       }
                     }
                   }

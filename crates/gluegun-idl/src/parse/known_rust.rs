@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::{AutoTraits, Error, Name, Scalar, Span, StringRepr, Ty, TypeKind};
+use crate::{AutoTraits, Error, Name, RefdTy, Scalar, Span, StringRepr, Ty, TypeKind};
 
 use super::modifier::Modifier;
 
@@ -22,7 +22,7 @@ pub(super) struct KnownRustType {
 }
 
 pub(super) enum KnownRustFn {
-    MakeType(fn(Span, &[Modifier], &[Ty], &BTreeMap<Name, Ty>) -> crate::Result<TypeKind>),
+    MakeType(fn(Span, &[Modifier], &[Ty], &BTreeMap<Name, Ty>) -> crate::Result<RefdTy>),
     Modifier(Modifier),
 }
 
@@ -105,31 +105,30 @@ macro_rules! known_rust_types {
 
 /// Known Rust types that we recognize from the std library or elsewhere.
 pub(super) const KNOWN_RUST_TYPES: &[KnownRustType] = known_rust_types! {
-    [] std::result::Result[ok, err][] @ _span => TypeKind::Result { ok, err, repr: crate::ResultRepr::Result },
-    [] anyhow::Result[ok][] @ span => TypeKind::Result { ok, err: Ty::anyhow_error(span), repr: crate::ResultRepr::Result },
-    [] std::option::Option[element][] @ _span => TypeKind::Option { element, repr: crate::OptionRepr::Option },
+    [] std::result::Result[ok, err][] @ span => TypeKind::Result { ok, err, repr: crate::ResultRepr::Result }.not_refd(span),
+    [] anyhow::Result[ok][] @ span => TypeKind::Result { ok, err: Ty::anyhow_error(span.clone()), repr: crate::ResultRepr::Result }.not_refd(span),
+    [] std::option::Option[element][] @ span => TypeKind::Option { element, repr: crate::OptionRepr::Option }.not_refd(span),
 
-    [] std::string::String[][] @ _span => TypeKind::String { repr: StringRepr::String },
-    [Modifier::Ref(r)] str[][] @ _span => TypeKind::String { repr: StringRepr::Str(r) },
+    [] std::string::String[][] @ span => TypeKind::String { repr: StringRepr::String }.not_refd(span),
+    [Modifier::Ref(r)] str[][] @ span => TypeKind::String { repr: StringRepr::StrRef }.refd(span, r),
 
-    [] std::vec::Vec[element][] @ _span => TypeKind::Vec { element, repr: crate::VecRepr::Vec, },
-    [] std::collections::HashMap[key, value][] @ _span => TypeKind::Map { key, value, repr: crate::MapSetRepr::Owned(crate::MapVariant::BTree) },
-    [] std::collections::BTreeMap[key, value][] @ _span => TypeKind::Map { key, value, repr: crate::MapSetRepr::Owned(crate::MapVariant::BTree) },
-    [] std::collections::HashSet[element][] @ _span => TypeKind::Set { element, repr: crate::MapSetRepr::Owned(crate::MapVariant::BTree) },
-    [] std::collections::BTreeSet[element][] @ _span => TypeKind::Set { element, repr: crate::MapSetRepr::Owned(crate::MapVariant::BTree) },
-    [Modifier::Ref(r)] std::path::Path[][] @ _span => TypeKind::Path { repr: crate::PathRepr::Path(r) },
-    [] std::path::PathBuf[][] @ _span => TypeKind::Path { repr: crate::PathRepr::PathBuf },
+    [] std::vec::Vec[element][] @ span => TypeKind::Vec { element, repr: crate::VecRepr::Vec, }.not_refd(span),
+    [] std::collections::HashMap[key, value][] @ span =>TypeKind::Map { key, value, repr: crate::MapSetRepr::BTree }.not_refd(span),
+    [] std::collections::BTreeMap[key, value][] @ span => TypeKind::Map { key, value, repr: crate::MapSetRepr::BTree }.not_refd(span),
+    [] std::collections::HashSet[element][] @ span =>TypeKind::Set { element, repr: crate::MapSetRepr::BTree }.not_refd(span),
+    [] std::collections::BTreeSet[element][] @ span => TypeKind::Set { element, repr: crate::MapSetRepr::BTree }.not_refd(span),
+    [Modifier::Ref(r)] std::path::Path[][] @ span => TypeKind::Path { repr: crate::PathRepr::PathRef }.refd(span, r),
+    [] std::path::PathBuf[][] @ span => TypeKind::Path { repr: crate::PathRepr::PathBuf }.not_refd(span),
 
-    [] u8[][] @ _span => TypeKind::Scalar(Scalar::U8),
-    [] u16[][] @ _span => TypeKind::Scalar(Scalar::U16),
-    [] u32[][] @ _span => TypeKind::Scalar(Scalar::U32),
-    [] u64[][] @ _span => TypeKind::Scalar(Scalar::U64),
-    [] i8[][] @ _span => TypeKind::Scalar(Scalar::I8),
-    [] i16[][] @ _span => TypeKind::Scalar(Scalar::I16),
-    [] i32[][] @ _span => TypeKind::Scalar(Scalar::I32),
-    [] i64[][] @ _span => TypeKind::Scalar(Scalar::I64),
-    [] f32[][] @ _span => TypeKind::Scalar(Scalar::F32),
-    [] f64[][] @ _span => TypeKind::Scalar(Scalar::F64),
+    [] u16[][] @ span => TypeKind::Scalar(Scalar::U16).not_refd(span),
+    [] u32[][] @ span => TypeKind::Scalar(Scalar::U32).not_refd(span),
+    [] u64[][] @ span => TypeKind::Scalar(Scalar::U64).not_refd(span),
+    [] i8[][] @ span => TypeKind::Scalar(Scalar::I8).not_refd(span),
+    [] i16[][] @ span => TypeKind::Scalar(Scalar::I16).not_refd(span),
+    [] i32[][] @ span => TypeKind::Scalar(Scalar::I32).not_refd(span),
+    [] i64[][] @ span => TypeKind::Scalar(Scalar::I64).not_refd(span),
+    [] f32[][] @ span => TypeKind::Scalar(Scalar::F32).not_refd(span),
+    [] f64[][] @ span => TypeKind::Scalar(Scalar::F64).not_refd(span),
 
     ---
     
@@ -138,8 +137,8 @@ pub(super) const KNOWN_RUST_TYPES: &[KnownRustType] = known_rust_types! {
 
 /// Known Rust types that we recognize from the std library or elsewhere.
 pub(super) const KNOWN_RUST_IMPL_TRAIT_TYPES: &[KnownRustType] = known_rust_types! {
-    [] std::string::ToString[][] @ _span => TypeKind::String { repr: StringRepr::ImplToString },
-    [] std::task::Future[][Output = output] @ _span => TypeKind::Future { output, repr: crate::FutureRepr::ImplFuture(AutoTraits::default()) },
+    [] std::string::ToString[][] @ span => TypeKind::String { repr: StringRepr::ImplToString }.not_refd(span),
+    [] std::task::Future[][Output = output] @ span => TypeKind::Future { output, repr: crate::FutureRepr::ImplFuture(AutoTraits::default()) }.not_refd(span),
 
     ---
     

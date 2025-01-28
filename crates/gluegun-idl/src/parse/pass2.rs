@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, sync::Arc};
 use syn::spanned::Spanned;
 
 use crate::{
-    Enum, Error, Field, Function, FunctionInput, FunctionOutput, IsAsync, Item, Method, MethodCategory, Name, QualifiedName, Record, Resource, SelfKind, Signature, Span, Ty, TypeKind, Variant, VariantArm
+    Enum, Error, Field, Function, FunctionInput, FunctionOutput, IsAsync, Item, Method, MethodCategory, Name, QualifiedName, Record, RefdTy, Resource, SelfKind, Signature, Span, Ty, TypeKind, Variant, VariantArm
 };
 
 use super::{
@@ -129,12 +129,12 @@ impl<'arena> Elaborator<'arena> {
             Some(name) => Ok(Field {
                 span: self.source().span(name),
                 name: util::recognize_name(name),
-                ty: self.elaborate_ty(Some(self_ty), &mut vec![], &field.ty)?,
+                ty: self.elaborate_owned_ty(Some(self_ty), &mut vec![], &field.ty)?,
             }),
             None => Ok(Field {
                 span: self.source().span(field),
                 name: Name::from(format!("f{index}")),
-                ty: self.elaborate_ty(Some(self_ty), &mut vec![], &field.ty)?,
+                ty: self.elaborate_owned_ty(Some(self_ty), &mut vec![], &field.ty)?,
             }),
         }
     }
@@ -327,7 +327,7 @@ impl<'arena> Elaborator<'arena> {
         // First convert the type in Rust to a `Ty`
         let elaborated_ty = match return_ty {
             syn::ReturnType::Default => Ty::unit(span),
-            syn::ReturnType::Type(_, ty) => self.elaborate_ty(self_ty, &mut vec![], ty)?,
+            syn::ReturnType::Type(_, ty) => self.elaborate_owned_ty(self_ty, &mut vec![], ty)?,
         };
 
         self.elaborated_ty_to_output(is_async, return_ty, &elaborated_ty)
@@ -359,7 +359,15 @@ impl<'arena> Elaborator<'arena> {
         }
     }
 
-    fn elaborate_ty(&self, self_ty: Option<&Ty>, modifiers: &mut Vec<Modifier>, ty: &syn::Type) -> crate::Result<Ty> {
+    /// Elaborate a Rust type under the given modifiers; 
+    fn elaborate_owned_ty(&self, self_ty: Option<&Ty>, modifiers: &mut Vec<Modifier>, ty: &syn::Type) -> crate::Result<Ty> {
+        match self.elaborate_ty(self_ty, modifiers, ty)? {
+            RefdTy::Owned(ty) => Ok(ty),
+            RefdTy::Ref(..) => Err(self.error(Error::UnsupportedType, ty)),
+        }
+    }
+
+    fn elaborate_ty(&self, self_ty: Option<&Ty>, modifiers: &mut Vec<Modifier>, ty: &syn::Type) -> crate::Result<RefdTy> {
         match ty {
             syn::Type::Group(ty) => self.elaborate_ty(self_ty, modifiers, &ty.elem),
 
@@ -396,23 +404,24 @@ impl<'arena> Elaborator<'arena> {
                     self.elaborate_ty(self_ty, modifiers, &ty.elem)
                 })
             }
+
             syn::Type::Slice(ty) => {
                 // Treat `[T]` as a list of `T`
                 
                 let span = self.source().span(ty);
                 if let [Modifier::Ref(r)] = &**modifiers {
-                    let elem = self.elaborate_ty(self_ty, &mut vec![], &ty.elem)?;
-                    Ok(Ty::new(
-                        span,
+                    let elem = self.elaborate_owned_ty(self_ty, &mut vec![], &ty.elem)?;
+                    Ok(
                         TypeKind::Vec {
                             element: elem.clone(),
-                            repr: crate::VecRepr::Slice(r.clone())
-                        },
-                    ))
+                            repr: crate::VecRepr::SliceRef
+                        }.refd(span, r.clone())
+                    )
                 } else {
                     Err(Error::UnsupportedType(span))
                 }
             }
+
             syn::Type::Tuple(ty) => {
                 // Tuples are first-class in our IR
 
@@ -420,15 +429,15 @@ impl<'arena> Elaborator<'arena> {
                 let tys = ty
                     .elems
                     .iter()
-                    .map(|ty| self.elaborate_ty(self_ty, &mut vec![], ty))
+                    .map(|ty| self.elaborate_owned_ty(self_ty, &mut vec![], ty))
                     .collect::<crate::Result<Vec<_>>>()?;
-                Ok(Ty::new(
+                self.maybe_referenced(modifiers, ty, Ty::new(
                     span,
                     TypeKind::Tuple {
                         elements: tys.clone(),
                         repr: crate::TupleRepr::Tuple(tys.len()),
                     },
-                ))
+                )) 
             }
 
             // Everything else is not recognized.
@@ -442,11 +451,11 @@ impl<'arena> Elaborator<'arena> {
         modifiers: &mut Vec<Modifier>,
         ty: &syn::Type,
         rust_path: RustPath<'_>,
-    ) -> crate::Result<Ty> {
+    ) -> crate::Result<RefdTy> {
         // Check for `Self`
         if rust_path.idents.len() == 1 && rust_path.idents[0] == "Self" {
             if let Some(self_ty) = self_ty {
-                Ok(self_ty.clone())
+                self.maybe_referenced(modifiers, ty, self_ty.clone())
             } else {
                 Err(self.error(Error::UnresolvedName, &ty))
             }
@@ -465,7 +474,7 @@ impl<'arena> Elaborator<'arena> {
                 return Err(self.error(Error::BindingNotExpected, ty));
             }
 
-            Ok(user_ty)
+            self.maybe_referenced(modifiers, ty, user_ty)
         } else {
             // Unknown or unsupported type.
             Err(self.error(Error::UnresolvedName, &ty))
@@ -482,7 +491,7 @@ impl<'arena> Elaborator<'arena> {
         ty: &syn::Type,
         path: &RustPath<'_>,
         krts: &[KnownRustType],
-    ) -> crate::Result<Option<Ty>> {
+    ) -> crate::Result<Option<RefdTy>> {
         let krt = if path.idents.len() == 1 {
             // If the user just wrote `Foo`, search just the last identifier.
             // We just assume all std Rust types are either in the prelude or are imported by some `use`.
@@ -506,9 +515,9 @@ impl<'arena> Elaborator<'arena> {
         let span = self.source().span(ty);
         match &krt.kr_fn {
             KnownRustFn::MakeType(f) => {
-                let tys = path.tys.iter().map(|ty| self.elaborate_ty(self_ty, modifiers, ty)).collect::<crate::Result<Vec<_>>>()?;
-                let type_kind = f(span.clone(), &modifiers, &tys, &path.bindings)?;
-                Ok(Some(Ty::new(span, type_kind)))
+                let tys = path.tys.iter().map(|ty| self.elaborate_owned_ty(self_ty, modifiers, ty)).collect::<crate::Result<Vec<Ty>>>()?;
+                let ty = f(span.clone(), &modifiers, &tys, &path.bindings)?;
+                Ok(Some(ty))
             }
             KnownRustFn::Modifier(modifier) => {
                 if path.tys.len() != 1 {
@@ -529,7 +538,7 @@ impl<'arena> Elaborator<'arena> {
         modifiers: &mut Vec<Modifier>,
         ty: &syn::Type,
         impl_trait_ty: &syn::TypeImplTrait,
-    ) -> crate::Result<Ty> {
+    ) -> crate::Result<RefdTy> {
         for bound in impl_trait_ty.bounds.iter() {
             match bound {
                 syn::TypeParamBound::Trait(bound) => {
@@ -580,7 +589,7 @@ impl<'arena> Elaborator<'arena> {
             unreachable!("empty list of idents")
         };
 
-        let tys = syn_tys.iter().map(|ty| self.elaborate_ty(None, &mut vec![], ty)).collect::<crate::Result<Vec<_>>>()?;
+        let tys = syn_tys.iter().map(|ty| self.elaborate_owned_ty(None, &mut vec![], ty)).collect::<crate::Result<Vec<_>>>()?;
 
         if ident0 == "crate" {
             // A path beginning with `crate::foo` is an absolute path relative to the crate name.
@@ -676,7 +685,7 @@ impl<'arena> Elaborator<'arena> {
                                 tys.push(ty);
                             }
                             syn::GenericArgument::AssocType(assoc_ty) => {
-                                let ty = self.elaborate_ty(self_ty, &mut vec![], &assoc_ty.ty)?;
+                                let ty = self.elaborate_owned_ty(self_ty, &mut vec![], &assoc_ty.ty)?;
                                 bindings.insert(Name::from_ident(&assoc_ty.ident), ty);
                             }
                             _ => {
@@ -707,6 +716,16 @@ impl<'arena> Elaborator<'arena> {
         let result = op(modifiers);
         modifiers.pop().unwrap();
         result
+    }
+
+    fn maybe_referenced(&self, modifiers: &Vec<Modifier>, spanned: impl Spanned, value: Ty) -> crate::Result<RefdTy> {
+        if modifiers.is_empty() {
+            Ok(value.not_refd())
+        } else if let [Modifier::Ref(r)] = &modifiers[..] {
+            Ok(value.refd(r.clone()))
+        } else {
+            Err(self.error(Error::UnsupportedType, spanned))
+        }
     }
 
     // Given a struct name like `Foo`,
@@ -793,11 +812,11 @@ impl<'arena> Elaborator<'arena> {
                 }
 
                 syn::FnArg::Typed(input) => {
-                    let input_ty = self.elaborate_ty(self_ty, &mut vec![], &input.ty)?;
+                    let ty = self.elaborate_ty(self_ty, &mut vec![], &input.ty)?;
                     inputs.push(FunctionInput {
                         span: self.source().span(&input.pat),
                         name: self.function_input_name(input)?,
-                        ty: input_ty,
+                        refd_ty: ty,
                     })
                 }
             }
