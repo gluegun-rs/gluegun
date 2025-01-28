@@ -6,6 +6,7 @@ use std::process::{ChildStdin, Command, ExitStatus, Stdio};
 use anyhow::Context;
 use cargo_metadata::camino::Utf8PathBuf;
 use clap::Parser;
+use serde::{Deserialize, Serialize};
 
 /// Main function for the gluegun CLI.
 pub fn cli_main() -> anyhow::Result<()> {
@@ -17,8 +18,7 @@ pub struct Builder {
     current_directory: Utf8PathBuf,
     args: Vec<OsString>,
     plugin_command: Box<dyn Fn(
-        Option<&serde_json::Value>,
-        Option<&serde_json::Value>,
+        &serde_json::Value,
         &str,
     ) -> anyhow::Result<Command>>,
 }
@@ -48,8 +48,7 @@ impl Builder {
     /// along with the name of the plugin. It should return a new `Command` object.
     pub fn plugin_command(mut self, 
         plugin_command: impl Fn(
-            Option<&serde_json::Value>,
-            Option<&serde_json::Value>,
+            &serde_json::Value,
             &str,
         ) -> anyhow::Result<Command> + 'static,
     ) -> Self {
@@ -104,26 +103,31 @@ impl Builder {
             .parse_crate_named(&package.name, &manifest_dir, &src_lib_rs)
             .with_context(|| format!("extracting interface from `{src_lib_rs}`"))?;
 
+        // Extract gluegun metadata (if any).
+        let gluegun_workspace_metadata = workspace_metadata.get("gluegun");
+        let gluegun_package_metadata = package.metadata.get("gluegun");
+        let gluegun_metadata = merge_metadata(gluegun_workspace_metadata, gluegun_package_metadata)
+            .with_context(|| format!("merging workspace and package metadata"))?;
+
         // Search for `workspace.metadata.gluegun.tool_name` and
         // `package.metadata.gluegun.tool_name`.
-        let plugin_workspace_metadata = extract_metadata(plugin, workspace_metadata);
-        let plugin_package_metadata = extract_metadata(plugin, &package.metadata);
-        let metadata = merge_metadata(plugin_workspace_metadata, plugin_package_metadata)
+        let plugin_workspace_metadata = gluegun_workspace_metadata.and_then(|v| v.get(plugin));
+        let plugin_package_metadata = gluegun_package_metadata.and_then(|v| v.get(plugin));
+        let plugin_metadata = merge_metadata(plugin_workspace_metadata, plugin_package_metadata)
             .with_context(|| format!("merging workspace and package metadata"))?;
 
         // Compute destination crate name and path
         let (crate_name, crate_path) =
-            dest_crate_name_and_path(plugin, workspace_metadata, package)
+            dest_crate_name_and_path(plugin, &gluegun_metadata, package)
                 .with_context(|| format!("computing destination crate name and path"))?;
 
         // Execute the plugin
         let exit_status = self
             .execute_plugin(
                 plugin,
-                workspace_metadata,
-                package,
+                &gluegun_metadata,
                 &idl,
-                &metadata,
+                &plugin_metadata,
                 &crate_name,
                 &crate_path,
             )
@@ -139,8 +143,7 @@ impl Builder {
     fn execute_plugin(
         &self,
         plugin: &str,
-        workspace_metadata: &serde_json::Value,
-        package: &cargo_metadata::Package,
+        gluegun_metadata: &serde_json::Value,
         idl: &gluegun_idl::Idl,
         metadata: &serde_json::Value,
         crate_name: &str,
@@ -149,8 +152,7 @@ impl Builder {
         // Create the plugin command using the hook supplied by configuration.
         // Default is to run `Self::default_plugin_command` below.
         let mut plugin_command = (self.plugin_command)(
-            workspace_metadata.get("gluegun"),
-            package.metadata.get("gluegun"),
+            gluegun_metadata,
             plugin,
         ).with_context(|| format!("creating plugin command"))?;
 
@@ -198,12 +200,11 @@ impl Builder {
     }
 
     fn default_plugin_command(
-        workspace_metadata: Option<&serde_json::Value>,
-        package_metadata: Option<&serde_json::Value>,
+        gluegun_metadata: &serde_json::Value,
         plugin: &str,
     ) -> anyhow::Result<Command> {
         if let Some(c) =
-            Self::customized_plugin_command(workspace_metadata, package_metadata, plugin)?
+            Self::customized_plugin_command(gluegun_metadata, plugin)?
         {
             return Ok(c);
         }
@@ -212,16 +213,10 @@ impl Builder {
     }
 
     fn customized_plugin_command(
-        workspace_metadata: Option<&serde_json::Value>,
-        package_metadata: Option<&serde_json::Value>,
+        gluegun_metadata: &serde_json::Value,
         plugin: &str,
     ) -> anyhow::Result<Option<Command>> {
-        let Some(plugin_command) = get_field_from_package_or_workspace(
-            workspace_metadata,
-            package_metadata,
-            "plugin_command",
-        )?
-        else {
+        let Some(plugin_command) = gluegun_metadata.get("plugin-command") else {
             return Ok(None);
         };
 
@@ -260,39 +255,27 @@ struct Cli {
     plugins: Vec<String>,
 }
 
-fn get_field_from_package_or_workspace<'v>(
-    workspace_metadata: Option<&'v serde_json::Value>,
-    package_metadata: Option<&'v serde_json::Value>,
-    field_name: &str,
-) -> anyhow::Result<Option<&'v serde_json::Value>> {
-    fn get_field_from<'v>(
-        json_value: Option<&'v serde_json::Value>,
-        field_name: &str,
-    ) -> anyhow::Result<Option<&'v serde_json::Value>> {
-        let Some(field) = json_value.and_then(|v| v.get(field_name)) else {
-            return Ok(None);
-        };
-
-        Ok(Some(field))
-    }
-
-    if let Some(f) = get_field_from(package_metadata, field_name)? {
-        return Ok(Some(f));
-    }
-
-    get_field_from(workspace_metadata, field_name)
-}
-
 fn dest_crate_name_and_path(
     plugin: &str,
-    _workspace_metadata: &serde_json::Value,
+    gluegun_metadata: &serde_json::Value,
     package: &cargo_metadata::Package,
 ) -> anyhow::Result<(String, Utf8PathBuf)> {
+    // Find the configuration (if any)
+    let dp: DestinationPath = gluegun_metadata.get("destination-path").and_then(|v| Some(serde_json::from_value(v.clone()))).unwrap_or(Ok(DestinationPath::Child))?;
+
     // Default crate name is `foo-x`, taken from the plugin
     let crate_name = format!("{}-{plugin}", package.name);
 
-    // Default path is to make a sibling of the target crate
-    let Some(package_parent) = package.manifest_path.parent() else {
+    // Parent directory: either the directory containing the
+    // `Cargo.toml` (child of target crate) or the parent of that
+    // directory (sibling of target crate), based on the configuration.
+    let package_parent = match dp {
+        DestinationPath::Child => package.manifest_path.parent(),
+        DestinationPath::Sibling => package.manifest_path.parent().and_then(|p| p.parent()),
+    };
+    
+    // Directory must exist or we get an error
+    let Some(package_parent) = package_parent else {
         anyhow::bail!(
             "cannot compute parent path for crate at `{}`",
             package.manifest_path
@@ -301,14 +284,6 @@ fn dest_crate_name_and_path(
     let crate_path = package_parent.join(&crate_name);
 
     Ok((crate_name, crate_path))
-}
-
-/// Given a root object, exact `{metadata}.gluegun.{plugin}`:
-fn extract_metadata<'r>(
-    plugin: &str,
-    metadata: &'r serde_json::Value,
-) -> Option<&'r serde_json::Value> {
-    Some(metadata.get("gluegun")?.get(plugin)?)
 }
 
 /// Merge metadata from workspace/package
@@ -364,4 +339,11 @@ fn merge_values(
             \n    package: {package_value}"
         ),
     }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum DestinationPath {
+    Child,
+    Sibling,
 }

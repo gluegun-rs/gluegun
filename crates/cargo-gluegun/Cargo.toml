@@ -11,4 +11,5 @@ clap-cargo = { version = "0.15.2", features = ["cargo_metadata"] }
 gluegun-core = { version = "0.1.0", path = "../gluegun-core" }
 gluegun-idl = { version = "0.1.0", path = "../gluegun-idl" }
 lazy_static = "1.5.0"
+serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.135"

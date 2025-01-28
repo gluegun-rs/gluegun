@@ -188,7 +188,7 @@ impl TestExecutor {
                     .into_iter()
                     .chain(options.iter().map(|o| &o[..])),
             )?
-            .plugin_command(|_workspace_metadata, _package_metadata, plugin| {
+            .plugin_command(|_gluegun_metadata, plugin| {
                 let manifest_path = std::env::var("CARGO_MANIFEST_PATH")
                     .with_context(|| format!("fetching `CARGO_MANIFEST_PATH` variable"))?;
                 let mut c = Command::new("cargo");
