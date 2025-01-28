@@ -4,7 +4,7 @@ use accessors_rs::Accessors;
 use serde::{Deserialize, Serialize};
 use syn::spanned::Spanned;
 
-#[derive(Accessors, Clone, Debug, Serialize, Deserialize)]
+#[derive(Accessors, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[accessors(get)]
 pub struct Span {
     pub(crate) path: PathBuf,
@@ -26,7 +26,7 @@ impl std::fmt::Display for Span {
     }
 }
 
-#[derive(Accessors, Clone, Debug, Serialize, Deserialize)]
+#[derive(Accessors, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[accessors(get)]
 pub struct ErrorLocation {
     /// Byte index since start of file

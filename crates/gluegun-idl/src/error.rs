@@ -2,7 +2,7 @@ use std::{ffi::OsString, path::PathBuf};
 
 use thiserror::Error;
 
-use crate::{Span, Name};
+use crate::{Name, Span};
 
 #[derive(Debug, Error)]
 #[non_exhaustive]
@@ -28,6 +28,9 @@ pub enum Error {
     #[error("{0}: unrecognized Rust item")]
     UnrecognizedItem(Span),
 
+    #[error("{0}: recognised this type but not number of arguments (expected {1}, found {2}")]
+    UnsupportedNumberOfArguments(Span, usize, usize),
+
     #[error("{0}: unsupported Rust item; consider using `#[gluegun::ignore]`")]
     UnsupportedItem(Span),
 
@@ -39,6 +42,9 @@ pub enum Error {
 
     #[error("{0}: unsupported Rust type")]
     UnsupportedType(Span),
+
+    #[error("{0}: Rust type recognized but not used in expected way or with expected arguments")]
+    UnsupportedUseOfType(Span),
 
     #[error("{0}: cannot resolve name (it must be public)")]
     UnresolvedName(Span),

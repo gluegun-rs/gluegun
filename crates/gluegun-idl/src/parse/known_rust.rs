@@ -1,11 +1,13 @@
 use std::collections::BTreeMap;
 
-use crate::{Error, Name, RustName, RustReprKind, Scalar, SourcePath, Ty, TypeKind};
+use crate::{AutoTraits, Error, Name, Scalar, Span, StringRepr, Ty, TypeKind};
+
+use super::modifier::Modifier;
 
 /// A Rust path extracted from syn
-pub struct RustPath {
+pub struct RustPath<'s> {
     pub(super) idents: Vec<syn::Ident>,
-    pub(super) tys: Vec<Ty>,
+    pub(super) tys: Vec<&'s syn::Type>,
     pub(super) bindings: BTreeMap<Name, Ty>,
 }
 
@@ -13,252 +15,133 @@ pub struct RustPath {
 /// See [`elaborate_rust_type`][].
 pub(super) struct KnownRustType {
     /// A path, beginning with the crate name.
-    name: &'static [&'static str],
+    pub(super) name: &'static [&'static str],
 
     /// The Type Kind to produce from our IDL (given the type arguments),.
-    type_kind: ArityFn<TypeKind>,
-
-    /// The Rust name to use for the rust representation;
-    /// the `Vec<Ty>` returned are extra arguments to add.
-    rust_name: fn() -> (RustName, Vec<Ty>),
+    pub(super) kr_fn: KnownRustFn,
 }
 
-/// Defines the arity along with a function that constructs the type kind, given its arguments.
-enum ArityFn<O> {
-    /// No positional type arguments expected.
-    Arity0(O),
+pub(super) enum KnownRustFn {
+    MakeType(fn(Span, &[Modifier], &[Ty], &BTreeMap<Name, Ty>) -> crate::Result<TypeKind>),
+    Modifier(Modifier),
+}
 
-    /// Exactly 1 positional type argument expected (`<X>`)
-    Arity1(fn(Ty) -> crate::Result<O>),
+// Macro for creating the "known rust type" table
+macro_rules! known_rust_types {
+    (
+        $(
+            [$($m:pat)*] $ident0:ident $(:: $ident1:ident)* [ $($ty:ident),* ] [$($binding:ident = $tyb:ident),* ] @ $s:pat => $e:expr,
+        )*
 
-    /// No positional type arguments expected but `Output = X` expected.
-    Arity0Output(fn(Ty) -> crate::Result<O>),
+        ---
 
-    /// Exactly 2 positional type arguments expected (`<X, Y>`).
-    Arity2(fn(Ty, Ty) -> crate::Result<O>),
+        $(
+            $mod_ident0:ident $(:: $mod_ident1:ident)* => $mod_value:expr,
+        )*
+    ) => {
+        &[
+            $(
+                KnownRustType {
+                    name: &[stringify!($ident0) $(, stringify!($ident1))*],
+                    kr_fn: KnownRustFn::MakeType(|span, modifiers, tys, bindings| {
+                        // Check whether modifier(s) meets the expected modifier(s)
+                        #[allow(unused_mut)]
+                        let mut expected_modifiers = 0;
+                        $(
+                            let Some($m) = modifiers.get(expected_modifiers).cloned() else {
+                                return Err($crate::Error::UnsupportedUseOfType(span));
+                            };
+                            expected_modifiers += 1;
+                        )*
+                        if modifiers.len() != expected_modifiers {
+                            return Err($crate::Error::UnsupportedUseOfType(span.clone()));
+                        }
+
+                        // Extract the arguments, erroring if the number provided doesn't match expectations
+                        #[allow(unused_mut)]
+                        let mut expected_args = 0;
+                        $(
+                            let Some($ty) = tys.get(expected_args).cloned() else {
+                                return Err($crate::Error::UnsupportedUseOfType(span));
+                            };
+                            expected_args += 1;
+                        )*
+                        if tys.len() != expected_args {
+                            return Err($crate::Error::UnsupportedUseOfType(span.clone()));
+                        }
+
+                        // Same for bindings.
+                        #[allow(unused_mut)]
+                        let mut expected_bindings = 0;
+                        $(
+                            let binding_name = $crate::Name::from(stringify!($binding));
+                            let Some($tyb) = bindings.get(&binding_name).cloned() else {
+                                return Err(Error::BindingNotFound(span.clone(), binding_name));
+                            };
+                            expected_bindings += 1;
+                        )*
+                        if bindings.len() != expected_bindings {
+                            return Err($crate::Error::UnsupportedUseOfType(span.clone()));
+                        }
+
+                        // Assign span to the user's variable
+                        let $s = span;
+
+                        // Execute user expression
+                        Ok($e)
+                    }),
+                },
+            )*
+
+            $(
+                KnownRustType {
+                    name: &[stringify!($mod_ident0) $(, stringify!($mod_ident1))*],
+                    kr_fn: KnownRustFn::Modifier($mod_value),
+                },
+            )*
+        ]
+    };
 }
 
 /// Known Rust types that we recognize from the std library or elsewhere.
-pub(super) const KNOWN_RUST_TYPES: &[KnownRustType] = &[
-    KnownRustType {
-        name: &["std", "result", "Result"],
-        type_kind: ArityFn::Arity2(|ok, err| Ok(TypeKind::Result { ok, err })),
-        rust_name: || (RustName::Result, vec![]),
-    },
-    KnownRustType {
-        name: &["anyhow", "Result"],
-        type_kind: ArityFn::Arity1(|ok| Ok(TypeKind::Result { ok, err: Ty::anyhow_error() })),
-        rust_name: || (RustName::Result, vec![Ty::anyhow_error()]),
-    },
-    KnownRustType {
-        name: &["std", "option", "Option"],
-        type_kind: ArityFn::Arity1(|element| Ok(TypeKind::Option { element })),
-        rust_name: || (RustName::Option, vec![]),
-    },
-    KnownRustType {
-        name: &["std", "vec", "Vec"],
-        type_kind: ArityFn::Arity1(|element| Ok(TypeKind::Vec { element })),
-        rust_name: || (RustName::Vec, vec![]),
-    },
-    KnownRustType {
-        name: &["std", "collections", "HashMap"],
-        type_kind: ArityFn::Arity2(|key, value| Ok(TypeKind::Map { key, value })),
-        rust_name: || (RustName::HashMap, vec![]),
-    },
-    KnownRustType {
-        name: &["std", "collections", "BTreeMap"],
-        type_kind: ArityFn::Arity2(|key, value| Ok(TypeKind::Map { key, value })),
-        rust_name: || (RustName::BTreeMap, vec![]),
-    },
-    KnownRustType {
-        name: &["std", "collections", "HashSet"],
-        type_kind: ArityFn::Arity1(|element| Ok(TypeKind::Set { element })),
-        rust_name: || (RustName::HashSet, vec![]),
-    },
-    KnownRustType {
-        name: &["std", "collections", "BTreeSet"],
-        type_kind: ArityFn::Arity1(|element| Ok(TypeKind::Set { element })),
-        rust_name: || (RustName::BTreeSet, vec![]),
-    },
-    KnownRustType {
-        name: &["str"],
-        type_kind: ArityFn::Arity0(TypeKind::String),
-        rust_name: || (RustName::Str, vec![]),
-    },
-    KnownRustType {
-        name: &["std", "string", "String"],
-        type_kind: ArityFn::Arity0(TypeKind::String),
-        rust_name: || (RustName::String, vec![]),
-    },
-    KnownRustType {
-        name: &["std", "path", "Path"],
-        type_kind: ArityFn::Arity0(TypeKind::String),
-        rust_name: || (RustName::Str, vec![]),
-    },
-    KnownRustType {
-        name: &["std", "path", "PathBuf"],
-        type_kind: ArityFn::Arity0(TypeKind::String),
-        rust_name: || (RustName::String, vec![]),
-    },
+pub(super) const KNOWN_RUST_TYPES: &[KnownRustType] = known_rust_types! {
+    [] std::result::Result[ok, err][] @ _span => TypeKind::Result { ok, err, repr: crate::ResultRepr::Result },
+    [] anyhow::Result[ok][] @ span => TypeKind::Result { ok, err: Ty::anyhow_error(span), repr: crate::ResultRepr::Result },
+    [] std::option::Option[element][] @ _span => TypeKind::Option { element, repr: crate::OptionRepr::Option },
+
+    [] std::string::String[][] @ _span => TypeKind::String { repr: StringRepr::String },
+    [Modifier::Ref(r)] str[][] @ _span => TypeKind::String { repr: StringRepr::Str(r) },
+
+    [] std::vec::Vec[element][] @ _span => TypeKind::Vec { element, repr: crate::VecRepr::Vec, },
+    [] std::collections::HashMap[key, value][] @ _span => TypeKind::Map { key, value, repr: crate::MapSetRepr::Owned(crate::MapVariant::BTree) },
+    [] std::collections::BTreeMap[key, value][] @ _span => TypeKind::Map { key, value, repr: crate::MapSetRepr::Owned(crate::MapVariant::BTree) },
+    [] std::collections::HashSet[element][] @ _span => TypeKind::Set { element, repr: crate::MapSetRepr::Owned(crate::MapVariant::BTree) },
+    [] std::collections::BTreeSet[element][] @ _span => TypeKind::Set { element, repr: crate::MapSetRepr::Owned(crate::MapVariant::BTree) },
+    [Modifier::Ref(r)] std::path::Path[][] @ _span => TypeKind::Path { repr: crate::PathRepr::Path(r) },
+    [] std::path::PathBuf[][] @ _span => TypeKind::Path { repr: crate::PathRepr::PathBuf },
+
+    [] u8[][] @ _span => TypeKind::Scalar(Scalar::U8),
+    [] u16[][] @ _span => TypeKind::Scalar(Scalar::U16),
+    [] u32[][] @ _span => TypeKind::Scalar(Scalar::U32),
+    [] u64[][] @ _span => TypeKind::Scalar(Scalar::U64),
+    [] i8[][] @ _span => TypeKind::Scalar(Scalar::I8),
+    [] i16[][] @ _span => TypeKind::Scalar(Scalar::I16),
+    [] i32[][] @ _span => TypeKind::Scalar(Scalar::I32),
+    [] i64[][] @ _span => TypeKind::Scalar(Scalar::I64),
+    [] f32[][] @ _span => TypeKind::Scalar(Scalar::F32),
+    [] f64[][] @ _span => TypeKind::Scalar(Scalar::F64),
+
+    ---
     
-    KnownRustType {
-        name: &["u8"],
-        type_kind: ArityFn::Arity0(TypeKind::Scalar(Scalar::U8)),
-        rust_name: || (RustName::Scalar(Scalar::U8), vec![]),
-    },
-    KnownRustType {
-        name: &["u16"],
-        type_kind: ArityFn::Arity0(TypeKind::Scalar(Scalar::U16)), 
-        rust_name: || (RustName::Scalar(Scalar::U16), vec![]),
-    },
-    KnownRustType {
-        name: &["u32"],
-        type_kind: ArityFn::Arity0(TypeKind::Scalar(Scalar::U32)),
-        rust_name: || (RustName::Scalar(Scalar::U32), vec![]),
-    },
-    KnownRustType {
-        name: &["u64"],
-        type_kind: ArityFn::Arity0(TypeKind::Scalar(Scalar::U64)),
-        rust_name: || (RustName::Scalar(Scalar::U64), vec![]),
-    },
-    KnownRustType {
-        name: &["i8"],
-        type_kind: ArityFn::Arity0(TypeKind::Scalar(Scalar::I8)),
-        rust_name: || (RustName::Scalar(Scalar::I8), vec![]),
-    },
-    KnownRustType {
-        name: &["i16"],
-        type_kind: ArityFn::Arity0(TypeKind::Scalar(Scalar::I16)),
-        rust_name: || (RustName::Scalar(Scalar::I16), vec![]),
-    },
-    KnownRustType {
-        name: &["i32"],
-        type_kind: ArityFn::Arity0(TypeKind::Scalar(Scalar::I32)),
-        rust_name: || (RustName::Scalar(Scalar::I32), vec![]),
-    },
-    KnownRustType {
-        name: &["i64"],
-        type_kind: ArityFn::Arity0(TypeKind::Scalar(Scalar::I64)),
-        rust_name: || (RustName::Scalar(Scalar::I64), vec![]),
-    },
-    KnownRustType {
-        name: &["f32"],
-        type_kind: ArityFn::Arity0(TypeKind::Scalar(Scalar::F32)),
-        rust_name: || (RustName::Scalar(Scalar::F32), vec![]),
-    },
-    KnownRustType {
-        name: &["f64"],
-        type_kind: ArityFn::Arity0(TypeKind::Scalar(Scalar::F64)),
-        rust_name: || (RustName::Scalar(Scalar::F64), vec![]),
-    },
-];
+};
 
-/// Known trait paths that can appear after `impl Trait`.
-/// These still resolve to types.
-pub(super) const KNOWN_RUST_IMPL_TRAIT_TYPES: &[KnownRustType] = &[
-    KnownRustType {
-        name: &["std", "future", "Future"],
-        type_kind: ArityFn::Arity0Output(|output| Ok(TypeKind::Future { output })),
-        rust_name: || (RustName::Future, vec![]),
-    },
-    KnownRustType {
-        name: &["std", "convert", "AsRef"],
-        type_kind: ArityFn::Arity1(|element| Ok(element.kind().clone())),
-        rust_name: || (RustName::ImplAsRef, vec![]),
-    },
-    KnownRustType {
-        name: &["std", "convert", "Into"],
-        type_kind: ArityFn::Arity1(|element| Ok(element.kind().clone())),
-        rust_name: || (RustName::ImplInto, vec![]),
-    },
-    KnownRustType {
-        name: &["gluegun", "MapLike"],
-        type_kind: ArityFn::Arity2(|key, value| Ok(TypeKind::Map { key, value })),
-        rust_name: || (RustName::ImplMapLike, vec![]),
-    },
-    KnownRustType {
-        name: &["gluegun", "VecLike"],
-        type_kind: ArityFn::Arity1(|element| Ok(TypeKind::Vec { element })),
-        rust_name: || (RustName::ImplVecLike, vec![]),
-    },
-    KnownRustType {
-        name: &["gluegun", "SetLike"],
-        type_kind: ArityFn::Arity1(|element| Ok(TypeKind::Set { element })),
-        rust_name: || (RustName::ImplSetLike, vec![]),
-    },
-];
 
-/// Match the path, deconstructed into `idents` and `tys`, that appears in `ty` against the list `krts` of known Rust types.
-/// Returns `Ok(Some(ty))` if the match is successful or `Ok(None)` if there is no match.
-/// Returns an error if there is a match for the name but the arity is wrong or some other similar situation.
-pub(super) fn elaborate_rust_type(
-    source: &SourcePath,
-    ty: &syn::Type,
-    path: RustPath,
-    krts: &[KnownRustType],
-) -> crate::Result<Option<Ty>> {
-    let krt = if path.idents.len() == 1 {
-        // If the user just wrote `Foo`, search just the last identifier.
-        // We just assume all std Rust types are either in the prelude or are imported by some `use`.
-        // This is a bit of a hack because the user may have shadowed e.g. `HashMap` with their own `HashMap`
-        // and we won't notice. Oh well, I'm lazy.
-        krts.iter()
-            .find(|krt| path.idents[0] == *krt.name.last().unwrap())
-    } else {
-        krts.iter().find(|krt| {
-            path.idents.len() == krt.name.len()
-                && path.idents.iter().zip(krt.name.iter()).all(|(a, b)| a == b)
-        })
-    };
+/// Known Rust types that we recognize from the std library or elsewhere.
+pub(super) const KNOWN_RUST_IMPL_TRAIT_TYPES: &[KnownRustType] = known_rust_types! {
+    [] std::string::ToString[][] @ _span => TypeKind::String { repr: StringRepr::ImplToString },
+    [] std::task::Future[][Output = output] @ _span => TypeKind::Future { output, repr: crate::FutureRepr::ImplFuture(AutoTraits::default()) },
 
-    // Did we find an entry?
-    let Some(krt) = krt else {
-        return Ok(None);
-    };
-
-    // Construct the type kind.
-    let type_kind = match &krt.type_kind {
-        ArityFn::Arity0(f) => {
-            if path.tys.len() != 0 {
-                return Err(Error::GenericsNotPermitted(source.span(ty)));
-            } else {
-                f.clone()
-            }
-        }
-        ArityFn::Arity1(f) => {
-            if path.tys.len() != 1 {
-                return Err(Error::GenericsNotPermitted(source.span(ty)));
-            } else {
-                f(path.tys[0].clone())?
-            }
-        }
-        ArityFn::Arity0Output(f) => {
-            let output = Name::from("Output");
-            
-            let Some(output_ty) = path.bindings.get(&output) else {
-                return Err(Error::BindingNotFound(source.span(ty), output));
-            };
-            
-            if path.tys.len() != 0 {
-                return Err(Error::GenericsNotPermitted(source.span(ty)));
-            } else {
-                f(output_ty.clone())?
-            }
-        }
-        ArityFn::Arity2(f) => {
-            if path.tys.len() != 2 {
-                return Err(Error::GenericsNotPermitted(source.span(ty)));
-            } else {
-                f(path.tys[0].clone(), path.tys[1].clone())?
-            }
-        }
-    };
-
-    // The Rust repr will be a "named" type.
-    let (rust_name, extra_tys) = (krt.rust_name)();
-    let mut rust_repr_tys = path.tys;
-    rust_repr_tys.extend(extra_tys);
-    let rust_repr = RustReprKind::Named(rust_name, rust_repr_tys, path.bindings);
-
-    Ok(Some(Ty::new(type_kind, rust_repr)))
-}
+    ---
+    
+    std::convert::AsRef => Modifier::Ref(crate::RefKind::ImplAsRef),
+};

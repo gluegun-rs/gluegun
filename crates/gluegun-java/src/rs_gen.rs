@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use gluegun_core::{
     codegen::{CodeWriter, LibraryCrate},
     idl::{
-        Enum, FunctionInput, FunctionOutput, Idl, Item, Method, MethodCategory, Name, QualifiedName, Record, Resource, RustReprKind, Signature, Ty, TypeKind, Variant
+        Enum, FunctionInput, FunctionOutput, Idl, Item, Method, MethodCategory, Name, QualifiedName, Record, Resource, Signature, Ty, TypeKind, Variant
     },
 };
 
@@ -261,43 +261,43 @@ impl<'idl> RustCodeGenerator<'idl> {
     fn java_parameter_ty(&self, ty: &Ty) -> anyhow::Result<String> {
         // FIXME: Duchess's macro has bugs but these work more-or-less for now.
         match ty.kind() {
-            TypeKind::Map { key, value } => {
+            TypeKind::Map { key, value, repr: _ } => {
                 Ok(format!(
                     "&duchess::java::util::Map<{}, {}>",
                     self.java_parameter_ty(key)?,
                     self.java_parameter_ty(value)?,
                 ))
             }
-            TypeKind::Vec { element } => {
+            TypeKind::Vec { element, repr: _ } => {
                 Ok(format!("&duchess::java::util::List<{}>", self.java_parameter_ty(element)?))
             }
-            TypeKind::Set { element } => {
+            TypeKind::Set { element, repr: _ } => {
                 Ok(format!("&duchess::java::util::Set<{}>", self.java_parameter_ty(element)?))
             }
-            TypeKind::Path => {
+            TypeKind::Path { repr: _ } => {
                 Ok(format!("&duchess::java::lang::String"))
             }
-            TypeKind::String => {
+            TypeKind::String { repr: _ } => {
                 Ok(format!("&duchess::java::lang::String"))
             }
-            TypeKind::Option { element } => {
+            TypeKind::Option { element, repr: _ } => {
                 // in practice everything in Java is nullable...
                 self.java_parameter_ty(element)
             }
-            TypeKind::Result { ok: _, err: _ } => {
+            TypeKind::Result { ok: _, err: _, repr: _ } => {
                 Ok(format!("&duchess::java::lang::Object"))
             }
-            TypeKind::Tuple { elements: _ } => {
+            TypeKind::Tuple { elements: _, repr: _ } => {
                 Ok(format!(
                     "&[&duchess::lang::Object]",
                 ))
             }
             TypeKind::Scalar(scalar) => Ok(scalar.to_string()),
-            TypeKind::Future { output: _ } => todo!(),
-            TypeKind::Error => {
+            TypeKind::Future { output: _, repr: _ } => todo!(),
+            TypeKind::Error { repr: _ } => {
                 Ok(format!("&duchess::java::lang::Exception"))
             }
-            TypeKind::UserType { qname: _ } => {
+            TypeKind::UserType { qname: _, repr: _ } => {
                 anyhow::bail!("user types not supported currently")
             }
             _ => todo!(),
@@ -307,36 +307,36 @@ impl<'idl> RustCodeGenerator<'idl> {
     fn rust_owned_ty(&self, ty: &Ty) -> String {
         // FIXME: We really ought to be taking the Rust representation into account.
         match ty.kind() {
-            TypeKind::Map { key, value } => {
+            TypeKind::Map { key, value, repr: _ } => {
                 format!(
                     "HashMap<{}, {}>",
                     self.rust_owned_ty(key),
                     self.rust_owned_ty(value),
                 )
             }
-            TypeKind::Vec { element } => {
+            TypeKind::Vec { element, repr: _ } => {
                 format!("Vec<{}>", self.rust_owned_ty(element))
             }
-            TypeKind::Set { element } => {
+            TypeKind::Set { element, repr: _ } => {
                 format!("HashSet<{}>", self.rust_owned_ty(element),)
             }
-            TypeKind::Path => {
+            TypeKind::Path { repr: _ } => {
                 format!("PathBuf")
             }
-            TypeKind::String => {
+            TypeKind::String { repr: _ } => {
                 format!("String")
             }
-            TypeKind::Option { element } => {
+            TypeKind::Option { element, repr: _ } => {
                 format!("Option<{}>", self.rust_owned_ty(element))
             }
-            TypeKind::Result { ok, err } => {
+            TypeKind::Result { ok, err, repr: _ } => {
                 format!(
                     "Result<{}, {}>",
                     self.rust_owned_ty(ok),
                     self.rust_owned_ty(err)
                 )
             }
-            TypeKind::Tuple { elements } => {
+            TypeKind::Tuple { elements, repr: _ } => {
                 format!(
                     "({})",
                     elements
@@ -347,9 +347,9 @@ impl<'idl> RustCodeGenerator<'idl> {
                 )
             }
             TypeKind::Scalar(scalar) => scalar.to_string(),
-            TypeKind::Future { output: _ } => todo!(),
-            TypeKind::Error => format!("anyhow::Error"),
-            TypeKind::UserType { qname } => qname.colon_colon(),
+            TypeKind::Future { output: _, repr: _ } => todo!(),
+            TypeKind::Error { repr: _ } => format!("anyhow::Error"),
+            TypeKind::UserType { qname, repr: _ } => qname.colon_colon(),
             _ => todo!(),
         }
     }
@@ -398,17 +398,7 @@ impl<'idl> RustCodeGenerator<'idl> {
         input: &FunctionInput,
     ) -> anyhow::Result<()> {
         let name = input.name();
-
-        let rust_repr = input.ty().rust_repr();
-        match rust_repr.kind() {
-            RustReprKind::Ref(_) => {
-                write!(lib_rs, "&{name},")?;
-            }
-            _ => {
-                write!(lib_rs, "{name},")?;
-            }
-        }
-
+        write!(lib_rs, "{name},")?;
         Ok(())
     }
 }

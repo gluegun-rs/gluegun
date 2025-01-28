@@ -296,31 +296,31 @@ impl<'idl> JavaCodeGenerator<'idl> {
 
     fn write_objectified_ty(&self, ty: &Ty) -> anyhow::Result<String> {
         match ty.kind() {
-            TypeKind::Map { key, value } => Ok(format!(
+            TypeKind::Map { key, value, repr: _ } => Ok(format!(
                 "java.util.Map<{K}, {V}>",
                 K = self.write_objectified_ty(key)?,
                 V = self.write_objectified_ty(value)?,
             )),
-            TypeKind::Vec { element } => Ok(format!(
+            TypeKind::Vec { element, repr: _ } => Ok(format!(
                 "java.util.List<{E}>",
                 E = self.write_objectified_ty(element)?,
             )),
-            TypeKind::Set { element } => Ok(format!(
+            TypeKind::Set { element, repr: _ } => Ok(format!(
                 "java.util.Set<{E}>",
                 E = self.write_objectified_ty(element)?,
             )),
-            TypeKind::Path => Ok("String".to_string()),
-            TypeKind::String => Ok("String".to_string()),
-            TypeKind::Option { element } => self.write_objectified_ty(element),
+            TypeKind::Path { repr: _ }=> Ok("String".to_string()),
+            TypeKind::String { repr: _ }=> Ok("String".to_string()),
+            TypeKind::Option { element, repr: _ } => self.write_objectified_ty(element),
 
             // This is pretty bad, but the expectation is that people don't pass `Result`
             // around most of the time, they should up in return types where they
             // are specially handled.
-            TypeKind::Result { ok: _, err: _ } => Ok("Object".to_string()),
+            TypeKind::Result { ok: _, err: _, repr: _ } => Ok("Object".to_string()),
 
             // FIXME: I think tuple arguments should be flattened,
             // since Java has no native concept of them.
-            TypeKind::Tuple { elements: _ } => Ok("Object[]".to_string()),
+            TypeKind::Tuple { elements: _, repr: _ } => Ok("Object[]".to_string()),
 
             TypeKind::Scalar(scalar) => match scalar {
                 Scalar::Char => Ok("Integer".to_string()),
@@ -333,12 +333,12 @@ impl<'idl> JavaCodeGenerator<'idl> {
                 Scalar::F64 => Ok("Double".to_string()),
                 _ => anyhow::bail!("unsupported scalar type: `{scalar}`"),
             },
-            TypeKind::Future { output } => Ok(format!(
+            TypeKind::Future { output, repr: _ } => Ok(format!(
                 "java.util.concurrent.Future<{V}>",
                 V = self.write_objectified_ty(output)?
             )),
-            TypeKind::Error => todo!(),
-            TypeKind::UserType { qname } => Ok(util::class_dot_name(qname)),
+            TypeKind::Error { repr: _} => todo!(),
+            TypeKind::UserType { qname, repr: _ } => Ok(util::class_dot_name(qname)),
             _ => anyhow::bail!("unsupported type: `{ty}`"),
         }
     }

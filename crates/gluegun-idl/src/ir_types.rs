@@ -1,79 +1,69 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::{borrow::Cow, sync::Arc};
 
+use accessors_rs::Accessors;
 use serde::{Deserialize, Serialize};
 
-use crate::{Name, QualifiedName};
+use crate::{QualifiedName, Span};
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
+#[derive(Accessors, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 pub struct Ty {
+    #[accessors(get)]
+    span: Span,
+
     kind: Arc<TypeKind>,
-    rust_repr: RustRepr,
 }
 
 impl Ty {
-    pub(crate) fn new(kind: TypeKind, repr: RustReprKind) -> Self {
+    pub(crate) fn new(span: Span, kind: TypeKind) -> Self {
         Self {
+            span,
             kind: Arc::new(kind),
-            rust_repr: RustRepr::new(repr),
         }
     }
 
-    pub(crate) fn anyhow_error() -> Self {
+    pub(crate) fn anyhow_error(span: Span) -> Self {
         Ty::new(
-            TypeKind::Error,
-            RustReprKind::Named(
-                RustName::AnyhowError,
-                Default::default(),
-                Default::default(),
-            ),
-        )
-    }
-
-    /// Returns the unit type. Used for a dummy value in early phases.
-    pub fn unit() -> Self {
-        Self::new(
-            TypeKind::Tuple { elements: vec![] },
-            RustReprKind::Tuple(vec![]),
+            span,
+            TypeKind::Error {
+                repr: ErrorRepr::AnyhowError,
+            },
         )
     }
 
     pub fn kind(&self) -> &TypeKind {
-        &self.kind
+        &*self.kind
     }
 
-    pub(crate) fn user(qname: &QualifiedName) -> Self {
-        Ty::new(
-            TypeKind::UserType {
-                qname: qname.clone(),
-            },
-            RustReprKind::User(qname.clone()),
+    /// Returns the unit type. Used for a dummy value in early phases.
+    pub fn unit(span: Span) -> Self {
+        Self::new(
+            span,
+            TypeKind::Tuple { elements: vec![], repr: TupleRepr::Tuple(0) },
         )
     }
 
-    pub(crate) fn with_repr(self, r: impl FnOnce(RustRepr) -> RustReprKind) -> Self {
-        let kind = r(self.rust_repr);
-        Self {
-            rust_repr: RustRepr::new(kind),
-            ..self
-        }
-    }
-
-    pub fn rust_repr(&self) -> &RustRepr {
-        &self.rust_repr
+    pub(crate) fn user(span: Span, qname: &QualifiedName) -> Self {
+        Ty::new(
+            span,
+            TypeKind::UserType {
+                qname: qname.clone(),
+                repr: UserTypeRepr::Owned,
+            },
+        )
     }
 }
 
 impl std::fmt::Display for Ty {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &*self.kind {
-            TypeKind::Map { key, value } => write!(f, "Map<{}, {}>", key, value),
-            TypeKind::Vec { element } => write!(f, "Vec<{}>", element),
-            TypeKind::Set { element } => write!(f, "Set<{}>", element),
-            TypeKind::Path => write!(f, "Path"),
-            TypeKind::String => write!(f, "String"),
-            TypeKind::Option { element } => write!(f, "Option<{}>", element),
-            TypeKind::Result { ok, err } => write!(f, "Result<{}, {}>", ok, err),
-            TypeKind::Tuple { elements } => {
+            TypeKind::Map { key, value, repr: _ } => write!(f, "Map<{}, {}>", key, value),
+            TypeKind::Vec { element, repr: _ } => write!(f, "Vec<{}>", element),
+            TypeKind::Set { element , repr: _} => write!(f, "Set<{}>", element),
+            TypeKind::Path { repr: _ } => write!(f, "Path"),
+            TypeKind::String { repr: _ } => write!(f, "String"),
+            TypeKind::Option { element, repr: _ } => write!(f, "Option<{}>", element),
+            TypeKind::Result { ok, err, repr: _ } => write!(f, "Result<{}, {}>", ok, err),
+            TypeKind::Tuple { elements, repr: _ } => {
                 let mut s = String::new();
                 s.push('(');
                 for (i, e) in elements.iter().enumerate() {
@@ -86,9 +76,9 @@ impl std::fmt::Display for Ty {
                 write!(f, "{}", s)
             }
             TypeKind::Scalar(s) => write!(f, "{}", s),
-            TypeKind::Future { output } => write!(f, "impl Future<Output = {}>", output),
-            TypeKind::Error => write!(f, "Error"),
-            TypeKind::UserType { qname } => write!(f, "{}", qname.to_string("::")),
+            TypeKind::Future { output, repr: _ } => write!(f, "impl Future<Output = {}>", output),
+            TypeKind::Error { repr: _ } => write!(f, "Error"),
+            TypeKind::UserType { qname, repr: _ } => write!(f, "{}", qname.to_string("::")),
         }
     }
 }
@@ -99,37 +89,214 @@ pub enum TypeKind {
     Map {
         key: Ty,
         value: Ty,
+        repr: MapSetRepr,
     },
     Vec {
         element: Ty,
+        repr: VecRepr,
     },
     Set {
         element: Ty,
+        repr: MapSetRepr,
     },
-    Path,
-    String,
+    Path {
+        repr: PathRepr,
+    },
+    String {
+        repr: StringRepr,
+    },
     Option {
         element: Ty,
+        repr: OptionRepr,
     },
     Result {
         ok: Ty,
         err: Ty,
+        repr: ResultRepr,
     },
     Tuple {
         elements: Vec<Ty>,
+        repr: TupleRepr,
     },
+
     Scalar(Scalar),
+    
     Future {
         output: Ty,
+        repr: FutureRepr,
     },
 
     // Represents a generic exception/error type.
-    Error,
+    Error {
+        repr: ErrorRepr,
+    },
 
     /// Type defined by the user
     UserType {
         qname: QualifiedName,
+
+        repr: UserTypeRepr,
     },
+}
+
+impl std::fmt::Display for TypeKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TypeKind::Map { key, value, repr: _ } => write!(f, "Map<{}, {}>", key, value)?,
+            TypeKind::Vec { element, repr: _ } => write!(f, "Vec<{}>", element)?,
+            TypeKind::Set { element, repr: _ } => write!(f, "Set<{}>", element)?,
+            TypeKind::Path { repr: _ } => write!(f, "Path")?,
+            TypeKind::String { repr: _ } => write!(f, "String")?, 
+            TypeKind::Option { element, repr: _ } => write!(f, "Option<{}>", element)?,
+            TypeKind::Result { ok, err, repr: _ } => write!(f, "Result<{}, {}>", ok, err)?,
+            TypeKind::Tuple { elements, repr: _ } => {
+                let mut s = String::new();
+                s.push('(');
+                for (i, e) in elements.iter().enumerate() {
+                    if i > 0 {
+                        s.push_str(", ");
+                    }
+                    s.push_str(&e.to_string());
+                }
+                s.push(')');
+                write!(f, "{}", s)?
+            },
+            TypeKind::Scalar(scalar) => write!(f, "{}", scalar)?,
+            TypeKind::Future { output, repr: _ } => write!(f, "impl Future<Output = {}>", output)?,
+            TypeKind::Error { repr: _ } => write!(f, "Error")?,
+            TypeKind::UserType { qname, repr: _ } => write!(f, "{}", qname.to_string("::"))?,
+        }
+        Ok(())
+    }
+}
+
+/// Different patterns that we recognize as being a "string" in Rust code.
+#[non_exhaustive]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
+pub enum StringRepr {
+    /// String
+    String,
+
+    /// &str
+    Str(RefKind),
+    
+    /// impl ToString
+    ImplToString,
+}
+
+/// Different patterns that we recognize as being a "Vec" in Rust code.
+#[non_exhaustive]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
+pub enum VecRepr {
+    /// Vec
+    Vec,
+
+    /// [T]
+    Slice(RefKind),
+}
+
+/// Different patterns that we recognize as being a "Map" in Rust code.
+#[non_exhaustive]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
+pub enum MapSetRepr {
+    Owned(MapVariant),
+
+    Ref(MapVariant, RefKind),
+}
+
+#[non_exhaustive]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
+pub enum MapVariant {
+    Hash,
+    BTree,
+    Index,
+}
+/// Different patterns that we recognize as being a "Path" in Rust code.
+#[non_exhaustive]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
+pub enum PathRepr {
+    /// Path,
+    Path(RefKind),
+
+    /// PathBuf
+    PathBuf,
+}
+
+/// Different patterns that we recognize as being a "Option" in Rust code.
+#[non_exhaustive]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
+pub enum OptionRepr {
+    /// Option<E>
+    Option,
+}
+
+/// Different patterns that we recognize as being a "Result" in Rust code.
+#[non_exhaustive]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
+pub enum ResultRepr {
+    /// Result<E>
+    Result,
+}
+
+/// Different patterns that we recognize as being a "Tuple" in Rust code.
+#[non_exhaustive]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
+pub enum TupleRepr {
+    /// (...) of arity N
+    Tuple(usize),
+}
+
+/// Different patterns that we recognize as being a "Future" in Rust code.
+#[non_exhaustive]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
+pub enum FutureRepr {
+    /// `impl Future<Output = T>`
+    ImplFuture(AutoTraits),
+
+    /// `Pin<Box<dyn Future<Output = T>`
+    PinBoxDynFuture(AutoTraits),
+}
+
+/// Different patterns that we recognize as being an "Error" in Rust code.
+#[non_exhaustive]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
+pub enum ErrorRepr {
+    /// `anyhow::Error`
+    AnyhowError,
+
+    /// `Box<dyn Error>`
+    BoxDynError(AutoTraits),
+}
+
+#[non_exhaustive]
+#[derive(Accessors, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
+#[accessors(get_copy)]
+pub struct AutoTraits {
+    send: bool,
+    sync: bool,
+    unpin: bool,
+}
+
+/// Kinds of references that can be provided
+#[non_exhaustive]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
+pub enum RefKind {
+    /// `&T``
+    AnonRef,
+
+    /// `impl AsRef<T>`
+    ImplAsRef,
+}
+
+/// Kinds of references that can be provided
+#[non_exhaustive]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
+pub enum UserTypeRepr {
+    /// `T``
+    Owned,
+
+    /// `&T`
+    Ref(RefKind),
 }
 
 /// Recognized scalar types.
@@ -152,78 +319,28 @@ pub enum Scalar {
     F64,
 }
 
+impl Scalar {
+    pub fn as_str(&self) -> Cow<'_, str> {
+        Cow::Borrowed(match self {
+            Scalar::Boolean => "bool",
+            Scalar::Char => "char",
+            Scalar::I8 => "i8",
+            Scalar::I16 => "i16",
+            Scalar::I32 => "i32",
+            Scalar::I64 => "i64",
+            Scalar::U8 => "u8",
+            Scalar::U16 => "u16",
+            Scalar::U32 => "u32",
+            Scalar::U64 => "u64",
+            Scalar::F32 => "f32",
+            Scalar::F64 => "f64",
+        })
+    }
+}
+
 impl std::fmt::Display for Scalar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Scalar::Boolean => write!(f, "bool"),
-            Scalar::Char => write!(f, "char"),
-            Scalar::I8 => write!(f, "i8"),
-            Scalar::I16 => write!(f, "i16"),
-            Scalar::I32 => write!(f, "i32"),
-            Scalar::I64 => write!(f, "i64"),
-            Scalar::U8 => write!(f, "u8"),
-            Scalar::U16 => write!(f, "u16"),
-            Scalar::U32 => write!(f, "u32"),
-            Scalar::U64 => write!(f, "u64"),
-            Scalar::F32 => write!(f, "f32"),
-            Scalar::F64 => write!(f, "f64"),
-        }
+        write!(f, "{}", self.as_str())
     }
 }
 
-/// Recognized scalar types
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
-pub struct RustRepr {
-    kind: Arc<RustReprKind>,
-}
-
-impl RustRepr {
-    pub(crate) fn new(kind: RustReprKind) -> Self {
-        Self {
-            kind: Arc::new(kind),
-        }
-    }
-
-    pub fn kind(&self) -> &RustReprKind {
-        &self.kind
-    }
-}
-
-#[non_exhaustive]
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
-pub enum RustReprKind {
-    Scalar(Scalar),
-    Ref(RustRepr),
-    Slice(Ty),
-    Named(RustName, Vec<Ty>, BTreeMap<Name, Ty>),
-    /// A type defined in this library
-    User(QualifiedName),
-    Tuple(Vec<Ty>),
-}
-
-/// Well known Rust types.
-#[non_exhaustive]
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
-pub enum RustName {
-    String,
-    Str,
-    HashMap,
-    IndexMap,
-    BTreeMap,
-    HashSet,
-    IndexSet,
-    BTreeSet,
-    ImplMapLike,
-    ImplVecLike,
-    ImplSetLike,
-    PathBuf,
-    ImplAsRef,
-    ImplInto,
-    Path,
-    Vec,
-    Scalar(Scalar),
-    Result,
-    Option,
-    AnyhowError,
-    Future,
-}
