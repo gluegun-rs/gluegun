@@ -16,7 +16,7 @@ members = [
     "crates/gluegun-core", "crates/gluegun-dummy",
     "crates/gluegun-idl",
     "crates/gluegun-java", "crates/gluegun-java-util", "crates/gluegun-py", "crates/gluegun-test-harness", 
-    "demos/hello_world", "demos/hello_world-py",
+    "demos/hello_world",
 ]
 
 [workspace.metadata.gluegun]
