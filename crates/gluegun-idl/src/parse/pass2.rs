@@ -356,6 +356,7 @@ impl<'arena> Elaborator<'arena> {
         };
 
         // Special case: returning `-> Result<X, E>`, `-> impl Future<Output = T>`, etc
+        let span = self.source().span(ty);
         match ty {
             syn::Type::Group(ty) => return self.elaborate_returned_ty(is_async, self_ty, &ty.elem),
 
@@ -364,7 +365,10 @@ impl<'arena> Elaborator<'arena> {
             syn::Type::Path(type_path) => {
                 let rust_path = self.elaborate_type_path(self_ty, type_path)?;
                 if let Some((main_ty, err_ty)) = self.match_type_path(self_ty, &mut vec![], ty, &rust_path, &["std", "result", "Result"])? {
-                    let err_ty= self.into_owned(rust_path.tys[1], err_ty)?;
+                    let err_ty = err_ty.owned_or_err()?.clone();
+                    Ok(FunctionOutput { main_ty, error_ty: Some(err_ty) })
+                } else if let Some(main_ty) = self.match_type_path(self_ty, &mut vec![], ty, &rust_path, &["anyhow", "Result"])? {
+                    let err_ty = Ty::anyhow_error(span);
                     Ok(FunctionOutput { main_ty, error_ty: Some(err_ty) })
                 } else {
                     fallback()
@@ -825,13 +829,6 @@ impl<'arena> Elaborator<'arena> {
                 }
             })
             .collect()
-    }
-
-    fn into_owned(&self, spanned: impl Spanned, refd_ty: RefdTy) -> crate::Result<Ty> {
-        match refd_ty {
-            RefdTy::Owned(OwnedKind::Owned, ty) => Ok(ty),
-            RefdTy::Ref(..) => Err(self.error(Error::UnsupportedUseOfType, spanned)),
-        }
     }
 
     fn elaborate_function(

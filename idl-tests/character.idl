@@ -72,21 +72,30 @@
                     "name": {
                       "text": "name"
                     },
-                    "ty": {
-                      "kind": "String",
-                      "rust_repr": {
-                        "kind": {
-                          "Ref": {
-                            "kind": {
-                              "Named": [
-                                "Str",
-                                [],
-                                {}
-                              ]
+                    "refd_ty": {
+                      "Ref": [
+                        "AnonRef",
+                        {
+                          "span": {
+                            "path": "idl-tests/character.rs",
+                            "start": {
+                              "byte": 117,
+                              "line": 8,
+                              "column": 23
+                            },
+                            "end": {
+                              "byte": 120,
+                              "line": 8,
+                              "column": 26
+                            }
+                          },
+                          "kind": {
+                            "String": {
+                              "repr": "StrRef"
                             }
                           }
                         }
-                      }
+                      ]
                     }
                   },
                   {
@@ -106,68 +115,76 @@
                     "name": {
                       "text": "class"
                     },
-                    "ty": {
-                      "kind": {
-                        "UserType": {
-                          "qname": {
-                            "names": [
-                              {
-                                "text": "character"
-                              },
-                              {
-                                "text": "Class"
+                    "refd_ty": {
+                      "Owned": [
+                        "Owned",
+                        {
+                          "span": {
+                            "path": "idl-tests/character.rs",
+                            "start": {
+                              "byte": 129,
+                              "line": 8,
+                              "column": 35
+                            },
+                            "end": {
+                              "byte": 134,
+                              "line": 8,
+                              "column": 40
+                            }
+                          },
+                          "kind": {
+                            "UserType": {
+                              "qname": {
+                                "names": [
+                                  {
+                                    "text": "character"
+                                  },
+                                  {
+                                    "text": "Class"
+                                  }
+                                ]
                               }
-                            ]
+                            }
                           }
                         }
-                      },
-                      "rust_repr": {
-                        "kind": {
-                          "User": {
-                            "names": [
-                              {
-                                "text": "character"
-                              },
-                              {
-                                "text": "Class"
-                              }
-                            ]
-                          }
-                        }
-                      }
+                      ]
                     }
                   }
                 ],
                 "output_ty": {
                   "main_ty": {
-                    "kind": {
-                      "UserType": {
-                        "qname": {
-                          "names": [
-                            {
-                              "text": "character"
-                            },
-                            {
-                              "text": "Character"
+                    "Owned": [
+                      "Owned",
+                      {
+                        "span": {
+                          "path": "idl-tests/character.rs",
+                          "start": {
+                            "byte": 11,
+                            "line": 1,
+                            "column": 12
+                          },
+                          "end": {
+                            "byte": 20,
+                            "line": 1,
+                            "column": 21
+                          }
+                        },
+                        "kind": {
+                          "UserType": {
+                            "qname": {
+                              "names": [
+                                {
+                                  "text": "character"
+                                },
+                                {
+                                  "text": "Character"
+                                }
+                              ]
                             }
-                          ]
+                          }
                         }
                       }
-                    },
-                    "rust_repr": {
-                      "kind": {
-                        "User": {
-                          "names": [
-                            {
-                              "text": "character"
-                            },
-                            {
-                              "text": "Character"
-                            }
-                          ]
-                        }
-                      }
-                    }
+                    ]
                   },
                   "error_ty": null
                 }
@@ -198,34 +215,38 @@
                 "inputs": [],
                 "output_ty": {
                   "main_ty": {
-                    "kind": {
-                      "UserType": {
-                        "qname": {
-                          "names": [
-                            {
-                              "text": "character"
-                            },
-                            {
-                              "text": "Class"
+                    "Owned": [
+                      "Owned",
+                      {
+                        "span": {
+                          "path": "idl-tests/character.rs",
+                          "start": {
+                            "byte": 287,
+                            "line": 16,
+                            "column": 28
+                          },
+                          "end": {
+                            "byte": 292,
+                            "line": 16,
+                            "column": 33
+                          }
+                        },
+                        "kind": {
+                          "UserType": {
+                            "qname": {
+                              "names": [
+                                {
+                                  "text": "character"
+                                },
+                                {
+                                  "text": "Class"
+                                }
+                              ]
                             }
-                          ]
+                          }
                         }
                       }
-                    },
-                    "rust_repr": {
-                      "kind": {
-                        "User": {
-                          "names": [
-                            {
-                              "text": "character"
-                            },
-                            {
-                              "text": "Class"
-                            }
-                          ]
-                        }
-                      }
-                    }
+                    ]
                   },
                   "error_ty": null
                 }
@@ -256,20 +277,29 @@
                 "inputs": [],
                 "output_ty": {
                   "main_ty": {
-                    "kind": "String",
-                    "rust_repr": {
-                      "kind": {
-                        "Ref": {
-                          "kind": {
-                            "Named": [
-                              "Str",
-                              [],
-                              {}
-                            ]
+                    "Ref": [
+                      "AnonRef",
+                      {
+                        "span": {
+                          "path": "idl-tests/character.rs",
+                          "start": {
+                            "byte": 348,
+                            "line": 20,
+                            "column": 28
+                          },
+                          "end": {
+                            "byte": 351,
+                            "line": 20,
+                            "column": 31
+                          }
+                        },
+                        "kind": {
+                          "String": {
+                            "repr": "StrRef"
                           }
                         }
                       }
-                    }
+                    ]
                   },
                   "error_ty": null
                 }
@@ -300,16 +330,32 @@
                 "inputs": [],
                 "output_ty": {
                   "main_ty": {
-                    "kind": {
-                      "Tuple": {
-                        "elements": []
+                    "Owned": [
+                      "Owned",
+                      {
+                        "span": {
+                          "path": "idl-tests/character.rs",
+                          "start": {
+                            "byte": 0,
+                            "line": 1,
+                            "column": 1
+                          },
+                          "end": {
+                            "byte": 0,
+                            "line": 1,
+                            "column": 1
+                          }
+                        },
+                        "kind": {
+                          "Tuple": {
+                            "elements": [],
+                            "repr": {
+                              "Tuple": 0
+                            }
+                          }
+                        }
                       }
-                    },
-                    "rust_repr": {
-                      "kind": {
-                        "Tuple": []
-                      }
-                    }
+                    ]
                   },
                   "error_ty": null
                 }
@@ -340,20 +386,27 @@
                 "inputs": [],
                 "output_ty": {
                   "main_ty": {
-                    "kind": {
-                      "Scalar": "U32"
-                    },
-                    "rust_repr": {
-                      "kind": {
-                        "Named": [
-                          {
-                            "Scalar": "U32"
+                    "Owned": [
+                      "Owned",
+                      {
+                        "span": {
+                          "path": "idl-tests/character.rs",
+                          "start": {
+                            "byte": 476,
+                            "line": 28,
+                            "column": 28
                           },
-                          [],
-                          {}
-                        ]
+                          "end": {
+                            "byte": 479,
+                            "line": 28,
+                            "column": 31
+                          }
+                        },
+                        "kind": {
+                          "Scalar": "U32"
+                        }
                       }
-                    }
+                    ]
                   },
                   "error_ty": null
                 }

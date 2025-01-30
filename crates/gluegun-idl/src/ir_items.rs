@@ -31,11 +31,6 @@ pub struct QualifiedName {
     pub(crate) names: Vec<Name>,
 }
 
-impl From<&Name> for QualifiedName {
-    fn from(name: &Name) -> Self {
-        QualifiedName::new(vec![name.clone()])
-    }
-}
 
 impl QualifiedName {
     /// Return a version of the qualified name separated by `.`
@@ -122,6 +117,21 @@ impl QualifiedName {
 
     pub(crate) fn just_crate(&self) -> QualifiedName {
         QualifiedName::new(vec![self.names[0].clone()])
+    }
+}
+
+impl From<&Name> for QualifiedName {
+    fn from(name: &Name) -> Self {
+        QualifiedName::new(vec![name.clone()])
+    }
+}
+
+impl<N> From<&[N]> for QualifiedName
+where 
+N: Into<Name> + Copy
+{
+    fn from(value: &[N]) -> Self {
+        QualifiedName::new(value.iter().copied().map(|n| n.into()).collect())
     }
 }
 

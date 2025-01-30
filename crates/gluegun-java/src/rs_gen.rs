@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use gluegun_core::{
     codegen::{CodeWriter, LibraryCrate},
     idl::{
-        Enum, FunctionInput, FunctionOutput, Idl, Item, Method, MethodCategory, Name, QualifiedName, Record, RefdTy, Resource, Signature, Ty, TypeKind, Variant
+        Enum, FunctionInput, FunctionOutput, Idl, Item, Method, MethodCategory, Name, QualifiedName, Record, RefdTy, Resource, Signature, TypeKind, Variant
     },
 };
 

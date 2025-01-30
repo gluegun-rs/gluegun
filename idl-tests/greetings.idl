@@ -57,33 +57,38 @@
                 "inputs": [],
                 "output_ty": {
                   "main_ty": {
-                    "span": {
-                      "path": "idl-tests/greetings.rs",
-                      "start": {
-                        "byte": 11,
-                        "line": 1,
-                        "column": 12
-                      },
-                      "end": {
-                        "byte": 20,
-                        "line": 1,
-                        "column": 21
-                      }
-                    },
-                    "kind": {
-                      "UserType": {
-                        "qname": {
-                          "names": [
-                            {
-                              "text": "greetings"
-                            },
-                            {
-                              "text": "Greetings"
+                    "Owned": [
+                      "Owned",
+                      {
+                        "span": {
+                          "path": "idl-tests/greetings.rs",
+                          "start": {
+                            "byte": 11,
+                            "line": 1,
+                            "column": 12
+                          },
+                          "end": {
+                            "byte": 20,
+                            "line": 1,
+                            "column": 21
+                          }
+                        },
+                        "kind": {
+                          "UserType": {
+                            "qname": {
+                              "names": [
+                                {
+                                  "text": "greetings"
+                                },
+                                {
+                                  "text": "Greetings"
+                                }
+                              ]
                             }
-                          ]
+                          }
                         }
                       }
-                    }
+                    ]
                   },
                   "error_ty": null
                 }
@@ -158,33 +163,38 @@
                 ],
                 "output_ty": {
                   "main_ty": {
-                    "span": {
-                      "path": "idl-tests/greetings.rs",
-                      "start": {
-                        "byte": 11,
-                        "line": 1,
-                        "column": 12
-                      },
-                      "end": {
-                        "byte": 20,
-                        "line": 1,
-                        "column": 21
-                      }
-                    },
-                    "kind": {
-                      "UserType": {
-                        "qname": {
-                          "names": [
-                            {
-                              "text": "greetings"
-                            },
-                            {
-                              "text": "Greetings"
+                    "Owned": [
+                      "Owned",
+                      {
+                        "span": {
+                          "path": "idl-tests/greetings.rs",
+                          "start": {
+                            "byte": 11,
+                            "line": 1,
+                            "column": 12
+                          },
+                          "end": {
+                            "byte": 20,
+                            "line": 1,
+                            "column": 21
+                          }
+                        },
+                        "kind": {
+                          "UserType": {
+                            "qname": {
+                              "names": [
+                                {
+                                  "text": "greetings"
+                                },
+                                {
+                                  "text": "Greetings"
+                                }
+                              ]
                             }
-                          ]
+                          }
                         }
                       }
-                    }
+                    ]
                   },
                   "error_ty": null
                 }
@@ -231,18 +241,48 @@
                       "text": "name"
                     },
                     "refd_ty": {
-                      "Owned": {
+                      "Owned": [
+                        "Owned",
+                        {
+                          "span": {
+                            "path": "idl-tests/greetings.rs",
+                            "start": {
+                              "byte": 315,
+                              "line": 17,
+                              "column": 30
+                            },
+                            "end": {
+                              "byte": 321,
+                              "line": 17,
+                              "column": 36
+                            }
+                          },
+                          "kind": {
+                            "String": {
+                              "repr": "String"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "output_ty": {
+                  "main_ty": {
+                    "Owned": [
+                      "Owned",
+                      {
                         "span": {
                           "path": "idl-tests/greetings.rs",
                           "start": {
-                            "byte": 315,
+                            "byte": 341,
                             "line": 17,
-                            "column": 30
+                            "column": 56
                           },
                           "end": {
-                            "byte": 321,
+                            "byte": 347,
                             "line": 17,
-                            "column": 36
+                            "column": 62
                           }
                         },
                         "kind": {
@@ -251,29 +291,7 @@
                           }
                         }
                       }
-                    }
-                  }
-                ],
-                "output_ty": {
-                  "main_ty": {
-                    "span": {
-                      "path": "idl-tests/greetings.rs",
-                      "start": {
-                        "byte": 341,
-                        "line": 17,
-                        "column": 56
-                      },
-                      "end": {
-                        "byte": 347,
-                        "line": 17,
-                        "column": 62
-                      }
-                    },
-                    "kind": {
-                      "String": {
-                        "repr": "String"
-                      }
-                    }
+                    ]
                   },
                   "error_ty": {
                     "span": {
