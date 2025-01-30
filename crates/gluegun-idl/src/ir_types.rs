@@ -57,8 +57,8 @@ impl Ty {
     }
 
     /// Create a [`RefdTy`][] for a type that is owned, not referenced
-    pub fn not_refd(self) -> RefdTy {
-        RefdTy::Owned(self)
+    pub fn owned(self) -> RefdTy {
+        RefdTy::Owned(OwnedKind::Owned, self)
     }
 }
 
@@ -154,7 +154,7 @@ impl TypeKind {
 
     /// Create a [`RefdTy`][] for a type that is owned, not referenced
     pub fn not_refd(self, span: Span) -> RefdTy {
-        Ty::new(span, self).not_refd()
+        Ty::new(span, self).owned()
     }
 }
 
@@ -336,10 +336,9 @@ impl std::fmt::Display for Scalar {
 
 /// A potentially referenced type. These can only appear at the outermost levels.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[non_exhaustive]
 pub enum RefdTy {
     /// `T`, owned value
-    Owned(Ty),
+    Owned(OwnedKind, Ty),
 
     /// Something created from a `&T`
     Ref(RefKind, Ty),
@@ -348,26 +347,50 @@ pub enum RefdTy {
 impl RefdTy {
     pub fn ty(&self) -> &Ty {
         match self {
-            RefdTy::Owned(ty) => ty,
+            RefdTy::Owned(OwnedKind::Owned, ty) => ty,
             RefdTy::Ref(_, ty) => ty,
         }
     }
-}
+    
+    pub(crate) fn owned_ty(&self) -> Option<&Ty> {
+        match self {
+            RefdTy::Owned(_, ty) => Some(ty),
+            RefdTy::Ref(..) => None,
+        }
+    }
 
-impl From<Ty> for RefdTy {
-    fn from(value: Ty) -> Self {
-        RefdTy::Owned(value)
+    /// If this is an owned type, return it, else return an error.
+    /// Used when backends do not support reference types in a particular position.
+    pub fn owned_or_err(&self) -> crate::Result<&Ty> {
+        match self {
+            RefdTy::Owned(OwnedKind::Owned, ty) => Ok(ty),
+            RefdTy::Ref(ref_kind, ty) => {
+                Err(crate::Error::ReferenceType(
+                    ty.span().clone(),
+                    ref_kind.clone(),
+                ))
+            }
+        }
     }
 }
 
 impl std::fmt::Display for RefdTy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RefdTy::Owned(ty) => write!(f, "{}", ty),
+            RefdTy::Owned(OwnedKind::Owned, ty) => write!(f, "{}", ty),
             RefdTy::Ref(RefKind::AnonRef, ty) => write!(f, "&{}", ty),
             RefdTy::Ref(RefKind::ImplAsRef, ty) => write!(f, "impl AsRef<{}>", ty),
         }
     }
+}
+
+/// Indicates the style of ownership. For now this is always just `T`
+/// but we may expand in the future to include `Box<T>`, for example.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum OwnedKind {
+    /// `T` on its own
+    Owned,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -378,4 +401,13 @@ pub enum RefKind {
 
     /// `impl AsRef<T>`
     ImplAsRef,
+}
+
+impl std::fmt::Display for RefKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RefKind::AnonRef => write!(f, "&"),
+            RefKind::ImplAsRef => write!(f, "impl AsRef"),
+        }
+    }
 }

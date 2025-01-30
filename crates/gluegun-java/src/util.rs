@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use gluegun_core::idl::{Name, QualifiedName};
+use gluegun_core::idl::{Name, QualifiedName, RefdTy, Ty};
 
 /// A qualified name following Java conventions.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -37,4 +37,26 @@ pub(crate) fn class_file_name(qname: &QualifiedName) -> PathBuf {
 pub(crate) fn class_dot_name(qname: &QualifiedName) -> String {
     let JavaQName { package, class_name } = class_package_and_name(qname);
     format!("{}.{}", package.dotted(), class_name)
+}
+
+pub trait AsTy {
+    fn as_ty(&self) -> &Ty;
+}
+
+impl<T: AsTy> AsTy for &T {
+    fn as_ty(&self) -> &Ty {
+        T::as_ty(self)
+    }
+}
+
+impl AsTy for Ty {
+    fn as_ty(&self) -> &Ty {
+        self
+    }
+}
+
+impl AsTy for RefdTy {
+    fn as_ty(&self) -> &Ty {
+        self.ty()
+    }
 }

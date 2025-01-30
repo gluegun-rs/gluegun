@@ -7,7 +7,7 @@ use gluegun_core::{
     },
 };
 
-use crate::util::{self, JavaQName};
+use crate::util::{self, AsTy, JavaQName};
 
 pub(crate) struct RustCodeGenerator<'idl> {
     idl: &'idl Idl,
@@ -258,7 +258,9 @@ impl<'idl> RustCodeGenerator<'idl> {
     }
 
     /// Return the type we should expect to receive from Java.
-    fn java_parameter_ty(&self, ty: &Ty) -> anyhow::Result<String> {
+    fn java_parameter_ty(&self, ty: impl AsTy) -> anyhow::Result<String> {
+        let ty = ty.as_ty();
+
         // FIXME: Duchess's macro has bugs but these work more-or-less for now.
         match ty.kind() {
             TypeKind::Map { key, value, repr: _ } => {
@@ -304,7 +306,10 @@ impl<'idl> RustCodeGenerator<'idl> {
         }
     }
 
-    fn rust_owned_ty(&self, ty: &Ty) -> String {
+    /// Return the owned version of Rust type
+    fn rust_owned_ty(&self, ty: impl AsTy) -> String {
+        let ty = ty.as_ty();
+
         // FIXME: We really ought to be taking the Rust representation into account.
         match ty.kind() {
             TypeKind::Map { key, value, repr: _ } => {
@@ -398,9 +403,8 @@ impl<'idl> RustCodeGenerator<'idl> {
     ) -> anyhow::Result<()> {
         let name = input.name();
         match input.refd_ty() {
-            RefdTy::Owned(_) => write!(lib_rs, "{name},")?,
+            RefdTy::Owned(..) => write!(lib_rs, "{name},")?,
             RefdTy::Ref(..) => write!(lib_rs, "&{name},")?,
-            _ => anyhow::bail!("{}: unsupported refd_ty: {:?}", input.span(), input)
         }
         Ok(())
     }

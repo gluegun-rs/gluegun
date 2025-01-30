@@ -2,7 +2,7 @@ use std::{ffi::OsString, path::PathBuf};
 
 use thiserror::Error;
 
-use crate::{Name, Span};
+use crate::{Name, RefKind, Span};
 
 #[derive(Debug, Error)]
 #[non_exhaustive]
@@ -66,6 +66,9 @@ pub enum Error {
 
     #[error("async functions cannot return `impl Future`")]
     DoubleAsync(Span),
+
+    #[error("{0}: only owned types are permitted here, not `{1}`-types")]
+    ReferenceType(Span, RefKind),
 }
 
 impl From<syn::Error> for Error {

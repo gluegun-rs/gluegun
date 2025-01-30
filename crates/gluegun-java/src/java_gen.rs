@@ -221,7 +221,7 @@ impl<'idl> JavaCodeGenerator<'idl> {
         write!(
             file,
             "public {static_kw} {ret} {name}(",
-            ret = self.write_ty(return_ty)?,
+            ret = self.write_ty(return_ty.ty())?,
             name = name
         )?;
         self.generate_function_inputs(file, signature.inputs())?;
@@ -269,7 +269,7 @@ impl<'idl> JavaCodeGenerator<'idl> {
         write!(
             file,
             "public {static_kw} native {ret} {native_name}(",
-            ret = self.write_ty(return_ty)?,
+            ret = self.write_ty(return_ty.ty())?,
         )?;
         self.generate_function_inputs(file, signature.inputs())?;
         write!(file, ");")?;

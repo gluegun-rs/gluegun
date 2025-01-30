@@ -105,8 +105,6 @@ macro_rules! known_rust_types {
 
 /// Known Rust types that we recognize from the std library or elsewhere.
 pub(super) const KNOWN_RUST_TYPES: &[KnownRustType] = known_rust_types! {
-    [] std::result::Result[ok, err][] @ span => TypeKind::Result { ok, err, repr: crate::ResultRepr::Result }.not_refd(span),
-    [] anyhow::Result[ok][] @ span => TypeKind::Result { ok, err: Ty::anyhow_error(span.clone()), repr: crate::ResultRepr::Result }.not_refd(span),
     [] std::option::Option[element][] @ span => TypeKind::Option { element, repr: crate::OptionRepr::Option }.not_refd(span),
 
     [] std::string::String[][] @ span => TypeKind::String { repr: StringRepr::String }.not_refd(span),
@@ -133,7 +131,6 @@ pub(super) const KNOWN_RUST_TYPES: &[KnownRustType] = known_rust_types! {
     ---
     
 };
-
 
 /// Known Rust types that we recognize from the std library or elsewhere.
 pub(super) const KNOWN_RUST_IMPL_TRAIT_TYPES: &[KnownRustType] = known_rust_types! {

@@ -444,7 +444,7 @@ pub struct FunctionInput {
 #[accessors(get)]
 pub struct FunctionOutput {
     /// Type of value returned on success.
-    pub(crate) main_ty: Ty,
+    pub(crate) main_ty: RefdTy,
 
     /// Type of value returned on error.
     pub(crate) error_ty: Option<Ty>,
