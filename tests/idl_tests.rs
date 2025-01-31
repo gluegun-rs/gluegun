@@ -1,6 +1,6 @@
 use camino::Utf8PathBuf;
 
-const PLUGINS: &[&str] = &["java"];
+const PLUGINS: &[&str] = &["java", "py"];
 
 fn project_root_directory() -> Utf8PathBuf {
     Utf8PathBuf::from(env!("CARGO_MANIFEST_DIR"))

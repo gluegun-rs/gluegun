@@ -23,8 +23,6 @@ impl GlueGunHelper for GlueGunJava {
     }
 
     fn generate(self, cx: &mut GenerateCx, &(): &(), output: &mut LibraryCrate) -> anyhow::Result<()> {
-        output.add_dependency(cx.idl().crate_name().text()).path(cx.idl().crate_path());
-
         // libary dependencies
         output.add_dependency("duchess").version("0.3");
 

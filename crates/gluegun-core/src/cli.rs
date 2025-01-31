@@ -19,6 +19,9 @@ pub trait GlueGunHelper {
     /// You can use `serde_json::Value` if you would like to just capture free-form.
     type Metadata: DeserializeOwned;
 
+    /// By default, we add the user's library as a dependency of the generated code.
+    const INCLUDE_USER_LIB_DEPENDENCY: bool = true;
+
     /// Returns the helper name that users provide to invoke this, e.g., for `gluegun-java`, returns `"java"`.
     fn name(&self) -> String;
 
@@ -59,10 +62,14 @@ where
     let stdin = std::io::stdin();
     let input: GlueGunInput<G::Metadata> = serde_json::from_reader(stdin.lock())?;
 
-    // Invoke the user's code
-    let mut cx = GenerateCx { idl: input.idl };
+    // Create `output` and add user lib as a dependency
     let mut output = LibraryCrate::from_args(&input.dest_crate);
-    helper.generate(&mut cx, &input.metadata, &mut output)?;
+    if G::INCLUDE_USER_LIB_DEPENDENCY {
+        output.add_dependency(input.idl.crate_name().text()).path(input.idl.crate_path());
+    }
+
+    // Invoke the user's code
+    helper.generate(&mut GenerateCx { idl: input.idl }, &input.metadata, &mut output)?;
 
     Ok(output.generate().with_context(|| {
         format!(
