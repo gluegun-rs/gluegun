@@ -9,7 +9,7 @@ The GlueGun IDL is mapped to Java as follows:
     * `u64`, `u64` to Java `long`
     * `f32` to Java `float`
     * `f64` to Java `double`
-    * `char` to Java `u32` (a Java `char` is not a 32-bit unicode code point)
+    * `char` to Java `int` (a Java `char` is not a 32-bit unicode code point, and new Java functions operating on Unicode characters use `int`)
 * Collection types map to Java collections:
     * A Rust `Vec<T>` to a Java `ArrayList<T>`
     * ...
