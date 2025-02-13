@@ -10,7 +10,7 @@ use std::{
 };
 
 /// Type to create a GlueGun adapter crate.
-#[derive(Debug, Accessors)]
+#[derive(Accessors)]
 pub struct LibraryCrate {
     /// The Rust name of the crate being generated (may include e.g., `-`)
     #[accessors(get)]
@@ -22,7 +22,7 @@ pub struct LibraryCrate {
 
     lib_configuration: TargetConfiguration,
 
-    cargo_command: Command,
+    cargo_new_command: Box<dyn Fn(&Self) -> Command>,
     dependencies: Vec<Dependency>,
     directories: Vec<PathBuf>,
     files: BTreeMap<PathBuf, Vec<u8>>,
@@ -39,18 +39,18 @@ impl LibraryCrate {
     /// You can use the various methods on this returned value to configure files that should be present.
     /// Once everything is ready, you can invoke [`Self::execute`][] to make changes on disk.
     pub(crate) fn from_args(args: &GlueGunDestinationCrate) -> Self {
-        let mut cargo_command = std::process::Command::new("cargo");
-        cargo_command.arg("new");
-        // cargo_command.arg("-q");
-        cargo_command.arg("--lib");
-        cargo_command.arg(&args.path);
-        cargo_command.arg("--name");
-        cargo_command.arg(&args.crate_name);
-
         Self {
             crate_name: args.crate_name.clone(),
             crate_path: args.path.clone(),
-            cargo_command,
+            cargo_new_command: Box::new(|this| {
+                let mut cargo_command = std::process::Command::new("cargo");
+                cargo_command.arg("new");
+                cargo_command.arg("--lib");
+                cargo_command.arg(this.crate_path());
+                cargo_command.arg("--name");
+                cargo_command.arg(this.crate_name());
+                cargo_command
+            }),
             lib_configuration: TargetConfiguration {
                 crate_types: vec![CrateType::CDyLib],
                 name: None,
@@ -60,6 +60,13 @@ impl LibraryCrate {
             files: Default::default(),
             dependencies: Default::default(),
         }
+    }
+
+    /// Configure the command we use to create the new path.
+    /// Supply a closure that two arguments, the path to the crate (directory) and the crate-name,
+    /// and returns a `Command` to execute. The default is to run `cargo new`.
+    pub fn set_cargo_new_command(&mut self, cargo_command: impl Fn(&Self) -> Command + 'static) {
+        self.cargo_new_command = Box::new(cargo_command);
     }
 
     /// Generate the crate on disk. May fail.
@@ -78,13 +85,12 @@ impl LibraryCrate {
     fn execute(&mut self) -> anyhow::Result<()> {
         self.ensure_workspace()?;
 
-        eprintln!("cargo_command: {:?}", self.cargo_command);
-        let status = self.cargo_command.status()?;
+        let mut cargo_new_command = (self.cargo_new_command)(self);
+        eprintln!("cargo_command: {:?}", cargo_new_command);
+        let status = cargo_new_command.status()?;
         if !status.success() {
             anyhow::bail!(
-                "cargo command `{:?}` failed with exit status `{}`",
-                self.cargo_command,
-                status,
+                "cargo command `{cargo_new_command:?}` failed with exit status `{status}`",
             );
         }
 
