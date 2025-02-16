@@ -1,4 +1,4 @@
-use super::CodeWriter;
+use super::{CodeWriter, HelperCommand, HelperCommandGuard};
 use crate::cli::GlueGunDestinationCrate;
 use accessors_rs::Accessors;
 use anyhow::Context;
@@ -22,6 +22,7 @@ pub struct LibraryCrate {
 
     lib_configuration: TargetConfiguration,
 
+    helper_commands: BTreeMap<String, HelperCommand>,
     cargo_new_command: Box<dyn Fn(&Self) -> Command>,
     dependencies: Vec<Dependency>,
     directories: Vec<PathBuf>,
@@ -42,6 +43,7 @@ impl LibraryCrate {
         Self {
             crate_name: args.crate_name.clone(),
             crate_path: args.path.clone(),
+            helper_commands: BTreeMap::default(),
             cargo_new_command: Box::new(|this| {
                 let mut cargo_command = std::process::Command::new("cargo");
                 cargo_command.arg("new");
@@ -69,6 +71,19 @@ impl LibraryCrate {
         self.cargo_new_command = Box::new(cargo_command);
     }
 
+    /// Add a required helper command needed by create creation, such as `cargo-component` for WASM.
+    /// The name of the command must be an executable.
+    /// Before beginning to create the crate, we will probe for the executable in PATH and, if it is not found, attempt to install it.
+    /// You can configure how these actions taking place by invoking methods in `HelperCommandGuard`.
+    /// If multiple helper commands are required, probes are ordered by the `Ord` trait (alphabetical-ASCII-order).
+    pub fn require_helper_command(&mut self, name: &str) -> HelperCommandGuard<'_> {
+        let command = self
+            .helper_commands
+            .entry(name.to_string())
+            .or_insert_with(|| HelperCommand::new(name.to_string()));
+        HelperCommandGuard::new(command)
+    }
+
     /// Generate the crate on disk. May fail.
     pub fn generate(mut self) -> anyhow::Result<()> {
         // FIXME: we shouldn't just delete the old thing
@@ -85,6 +100,8 @@ impl LibraryCrate {
     fn execute(&mut self) -> anyhow::Result<()> {
         self.ensure_workspace()?;
 
+        self.install_helper_commands()?;
+
         let mut cargo_new_command = (self.cargo_new_command)(self);
         eprintln!("cargo_command: {:?}", cargo_new_command);
         let status = cargo_new_command.status()?;
@@ -95,7 +112,8 @@ impl LibraryCrate {
         }
 
         let cargo_toml_path = self.crate_path.join("Cargo.toml");
-        self.lib_configuration.emit_target(&cargo_toml_path, "[lib]")?;
+        self.lib_configuration
+            .emit_target(&cargo_toml_path, "[lib]")?;
 
         for dependency in &self.dependencies {
             eprintln!("adding {dependency:?}");
@@ -123,6 +141,13 @@ impl LibraryCrate {
                 .with_context(|| format!("writing to file at `{}`", file_path.display()))?;
         }
 
+        Ok(())
+    }
+
+    fn install_helper_commands(&mut self) -> anyhow::Result<()> {
+        for helper_command in self.helper_commands.values() {
+            helper_command.install_if_needed()?;
+        }
         Ok(())
     }
 
@@ -453,7 +478,11 @@ impl TargetConfiguration {
         writeln!(
             cargo_toml_text,
             "crate-type = [{}]",
-            self.crate_types.iter().map(|c| format!("{c:?}")).collect::<Vec<_>>().join(", ")
+            self.crate_types
+                .iter()
+                .map(|c| format!("{c:?}"))
+                .collect::<Vec<_>>()
+                .join(", ")
         )?;
         writeln!(
             cargo_toml_text,
