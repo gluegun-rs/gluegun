@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 description = "Placeholder"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/gluegun/gluegun"
-documentation = "https://gluegun.github.io/gluegun"
+repository = "https://github.com/gluegun-rs/gluegun"
+documentation = "https://gluegun-rs.github.io/gluegun"
 
 [lib]
 proc-macro = true

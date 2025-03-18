@@ -81,7 +81,7 @@ class Character:
 
 Of course you can create more than Python. You could also do `cargo gluegun java` for Java code or `cargo gluegun cpp` for C++ code.
 
-To see a more complex example, check out the [tutorial](./tutorial.md).
+To see a more complex example, check out the [tutorial](https://gluegun-rs.github.io/gluegun/tutorial.html).
 
 ## Open-ended
 
